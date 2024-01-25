@@ -1,0 +1,16 @@
+/.project
+/.settings/*
+/.idea/*
+/.classpath
+/bin/*
+/logs
+/logs/*
+/target/*
+/*.iml
+/*.log
+/.myeclipse/*
+/dubbo/*
+/.factorypath
+/.springBeans
+/.apt_generated/*
+/.apt_generated_tests/*
