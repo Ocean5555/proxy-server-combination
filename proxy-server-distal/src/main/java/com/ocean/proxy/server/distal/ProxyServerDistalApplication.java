@@ -25,10 +25,7 @@ public class ProxyServerDistalApplication {
         if (StringUtils.isEmpty(authPort)) {
             authPort = "9110";
         }
-        String connectPort = properties.getProperty("proxy.connect.port");
         Authentication.startAuthServer(authPort);
-        ProxyServer server = new ProxyServer();
-        server.startConnectServer(connectPort);
     }
 
     private static Properties loadProperties() throws Exception{

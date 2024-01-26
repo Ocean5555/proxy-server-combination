@@ -49,19 +49,25 @@ public class DataTransHandler {
 
     private void createClientThread(Socket clientSocket, Socket distalTransSocket) throws IOException {
         InputStream input = clientSocket.getInputStream();
-        OutputStream targetOutput = distalTransSocket.getOutputStream();
         Executors.newSingleThreadScheduledExecutor().execute(() -> {
             try {
                 //源端与目标端数据传输
                 int defaultLen = 1024;
                 byte[] buffer = new byte[defaultLen];
                 int bytesRead;
-                while (!this.clientSocket.isClosed() && (bytesRead = input.read(buffer)) != -1) {
-                    byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
-                    buffer = new byte[defaultLen];
-                    //加密
-                    encryptData(validData);
-                    targetOutput.write(validData);
+                while (!clientSocket.isClosed()) {
+                    if ((bytesRead = input.read(buffer)) != -1) {
+                        byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
+                        buffer = new byte[defaultLen];
+                        //加密
+                        encryptData(validData);
+                        OutputStream distalOutput = distalTransSocket.getOutputStream();
+                        distalOutput.write(validData);
+                    }
+                }
+                System.out.println("close a connect for distalTransSocket");
+                if (!distalTransSocket.isClosed()) {
+                    distalTransSocket.close();
                 }
             } catch (SocketException e) {
                 if ("Connection reset".equals(e.getMessage())) {
@@ -79,19 +85,25 @@ public class DataTransHandler {
 
     private void createDistalThread(Socket distalTransSocket, Socket clientSocket) throws IOException {
         InputStream input = distalTransSocket.getInputStream();
-        OutputStream targetOutput = clientSocket.getOutputStream();
         Executors.newSingleThreadScheduledExecutor().execute(() -> {
             try {
                 //源端与目标端数据传输
                 int defaultLen = 1024;
                 byte[] buffer = new byte[defaultLen];
                 int bytesRead;
-                while (!this.clientSocket.isClosed() && (bytesRead = input.read(buffer)) != -1) {
-                    byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
-                    buffer = new byte[defaultLen];
-                    //解密
-                    decryptData(validData);
-                    targetOutput.write(validData);
+                while (!distalTransSocket.isClosed()) {
+                    if ((bytesRead = input.read(buffer)) != -1) {
+                        byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
+                        buffer = new byte[defaultLen];
+                        //解密
+                        decryptData(validData);
+                        OutputStream clientOutput = clientSocket.getOutputStream();
+                        clientOutput.write(validData);
+                    }
+                }
+                System.out.println("close a connect for clientSocket");
+                if (!clientSocket.isClosed()) {
+                    clientSocket.close();
                 }
             } catch (SocketException e) {
                 if ("Connection reset".equals(e.getMessage())) {

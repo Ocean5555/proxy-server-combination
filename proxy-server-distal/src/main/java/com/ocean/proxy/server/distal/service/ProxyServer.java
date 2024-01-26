@@ -1,6 +1,7 @@
 package com.ocean.proxy.server.distal.service;
 
 import com.ocean.proxy.server.distal.util.BytesUtil;
+import sun.awt.SunHints;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,28 +13,55 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class ProxyServer {
+
+    private static ExecutorService executorService = Executors.newCachedThreadPool();;
 
     /**
      * 开启连接服务，客户端发起新连接的时候触发。
      *
-     * @param connectPort
+     * @param connectSocket
      */
-    public void startConnectServer(String connectPort) {
+    public static void startConnectServer(ServerSocket connectSocket, Socket proximalAuthSocket) {
         Executors.newSingleThreadExecutor().execute(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(Integer.parseInt(connectPort))) {
-                System.out.println("Proxy connect Server is running on port " + connectPort);
-                while (true) {
+            while (!connectSocket.isClosed()) {
+                try {
                     //建立代理线程，等待客户端发起的代理连接
-                    Socket clientSocket = serverSocket.accept();
-                    System.out.println("create connect from " + clientSocket.getInetAddress().toString() + ":" + clientSocket.getPort());
-                    createConnectThread(clientSocket);
+                    Socket proximalSocket = connectSocket.accept();
+                    System.out.println("=======================================");
+                    System.out.println("rise a connect from " +
+                            proximalSocket.getInetAddress().toString() + ":" + proximalSocket.getPort());
+                    createConnectThread(proximalSocket);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+            System.out.println("proximalAuthSocket has closed!");
+        });
+        Executors.newSingleThreadExecutor().execute(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    proximalAuthSocket.sendUrgentData(0xFF);
+                } catch (IOException e) {
+                    System.out.println("proximal socket is close, close the connect port!");
+                    try {
+                        connectSocket.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                    return;
+                }
+            }
+
         });
     }
 
@@ -44,15 +72,16 @@ public class ProxyServer {
      * @param proximalSocket
      * @throws IOException
      */
-    private void createConnectThread(Socket proximalSocket) {
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+    private static void createConnectThread(Socket proximalSocket) {
+        executorService.execute(() -> {
             try {
                 InputStream proximalInput = proximalSocket.getInputStream();
                 // 从客户端读取数据并发送到目标服务器
                 int defaultLen = 1024;
                 byte[] data = new byte[defaultLen];
                 int bytesRead;
-                while (!proximalSocket.isClosed() && (bytesRead = proximalInput.read(data)) != -1) {
+                //处理连接信息
+                if ((bytesRead = proximalInput.read(data)) != -1) {
                     byte[] validData = BytesUtil.splitBytes(data, 0, bytesRead);
                     data = new byte[defaultLen];
                     Authentication.encryptDecrypt(validData);
@@ -66,13 +95,14 @@ public class ProxyServer {
                         if (BytesUtil.toHexString(token).equals(BytesUtil.toHexString(cacheToken))) {
                             byte[] remaining = new byte[buffer.remaining()];
                             buffer.get(remaining);
+                            System.out.println("token verification passed");
                             processConnectData(remaining, proximalSocket, token);
                         } else {
-                            System.out.println("auth fail!");
+                            System.out.println("token verification fail!");
                             responseConnectFail(proximalSocket);
                         }
                     } else {
-                        System.out.println("auth fail!");
+                        System.out.println("token verification fail!");
                         responseConnectFail(proximalSocket);
                     }
                 }
@@ -97,9 +127,8 @@ public class ProxyServer {
      * @param data           建立连接的信息
      * @param proximalSocket
      */
-    private void processConnectData(byte[] data, Socket proximalSocket, byte[] token) {
+    private static void processConnectData(byte[] data, Socket proximalSocket, byte[] token) {
         try {
-            System.out.println("create new trans connect request from :" + proximalSocket.getInetAddress() + ":" + proximalSocket.getPort());
             ByteBuffer buffer = ByteBuffer.wrap(data);
             //获取要连接的目标服务器地址和端口
             int addressLen = buffer.getInt();
@@ -107,18 +136,16 @@ public class ProxyServer {
             buffer.get(address);
             String targetAddress = new String(address, StandardCharsets.UTF_8);
             int targetPort = buffer.getInt();
-            System.out.println("create target socket " + targetAddress + ":" + targetPort);
+            System.out.println("start connect target " + targetAddress + ":" + targetPort);
             //与目标服务建立连接
             Socket targetSocket = new Socket(targetAddress, targetPort);
-            System.out.println("connect target " + targetAddress + ":" + targetPort + " success!");
-            //随机创建一个新的端口，用于客户端连接与数据转发
-            ServerSocket transSocket = new ServerSocket(0, 1, InetAddress.getByName("0.0.0.0"));
-            DataTransHandler.bindProximalAndTarget(transSocket, targetSocket, token);
+            System.out.println("success connected");
+            //绑定proximal的连接与target的连接
+            DataTransHandler.bindProximalAndTarget(proximalSocket, targetSocket, token);
 
             //返回结果数据，格式：发送的数据+状态+新端口+token
             byte[] status = new byte[]{0x01};
-            byte[] newPort = BytesUtil.toBytesH(transSocket.getLocalPort());
-            byte[] responseData = BytesUtil.concatBytes(status, newPort, token);
+            byte[] responseData = BytesUtil.concatBytes(status, token);
             Authentication.encryptDecrypt(responseData);
             OutputStream proximalOutput = proximalSocket.getOutputStream();
             proximalOutput.write(responseData);
@@ -128,7 +155,7 @@ public class ProxyServer {
         }
     }
 
-    private void responseConnectFail(Socket proximalSocket) {
+    private static void responseConnectFail(Socket proximalSocket) {
         try {
             //返回与目标服务连接失败的信息
             OutputStream proximalOutput = proximalSocket.getOutputStream();

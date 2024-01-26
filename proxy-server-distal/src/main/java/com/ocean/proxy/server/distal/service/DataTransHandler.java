@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
@@ -21,7 +22,7 @@ import java.util.concurrent.Executors;
 @Data
 public class DataTransHandler {
 
-    private ServerSocket localSocket;
+    private Socket proximalSocket;
 
     private Socket targetSocket;
 
@@ -30,26 +31,26 @@ public class DataTransHandler {
     private Cipher encryptCipher;
     private Cipher decryptCipher;
 
+    private static ExecutorService executorService = Executors.newCachedThreadPool();;
 
-    public static void bindProximalAndTarget(ServerSocket localSocket, Socket targetSocket, byte[] token) throws Exception{
-        DataTransHandler dataTransHandler = new DataTransHandler(localSocket, targetSocket, token);
+    public static void bindProximalAndTarget(Socket proximalSocket, Socket targetSocket, byte[] token) throws Exception{
+        DataTransHandler dataTransHandler = new DataTransHandler(proximalSocket, targetSocket, token);
         dataTransHandler.startTansData();
+
     }
 
-    public DataTransHandler(ServerSocket localSocket, Socket targetSocket, byte[] token) throws Exception{
-        this.localSocket = localSocket;
+    public DataTransHandler(Socket proximalSocket, Socket targetSocket, byte[] token) throws Exception{
+        this.proximalSocket = proximalSocket;
         this.targetSocket = targetSocket;
         this.token = token;
         encryptCipher = initEncryptCipher(token);
         decryptCipher = initDecryptCipher(token);
-        System.out.println("create new socket for data trans, port:" + localSocket.getLocalPort());
     }
 
     public void startTansData() {
+        System.out.println("run data trans thread");
         Executors.newSingleThreadExecutor().execute(()->{
             try {
-                Socket proximalSocket = localSocket.accept();
-                System.out.println("client have been connected data trans socket:" + localSocket.getLocalPort());
                 createProximalThread(proximalSocket, targetSocket);
                 createTargetThread(targetSocket, proximalSocket);
             } catch (IOException e) {
@@ -60,19 +61,25 @@ public class DataTransHandler {
 
     private void createProximalThread(Socket proximalSocket, Socket targetSocket) throws IOException {
         InputStream input = proximalSocket.getInputStream();
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+        executorService.execute(() -> {
             try {
                 // 从客户端读取数据并发送到目标服务器
                 int defaultLen = 1024;
                 byte[] buffer = new byte[defaultLen];
                 int bytesRead;
-                while (!proximalSocket.isClosed() && (bytesRead = input.read(buffer)) != -1) {
-                    byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
-                    buffer = new byte[defaultLen];
-                    //解密
-                    decryptData(validData);
-                    OutputStream targetOutput = targetSocket.getOutputStream();
-                    targetOutput.write(validData);
+                while (!proximalSocket.isClosed()) {
+                    if ((bytesRead = input.read(buffer)) != -1) {
+                        byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
+                        buffer = new byte[defaultLen];
+                        //解密
+                        decryptData(validData);
+                        OutputStream targetOutput = targetSocket.getOutputStream();
+                        targetOutput.write(validData);
+                    }
+                }
+                System.out.println("close a connect for proximal");
+                if(!targetSocket.isClosed()){
+                    targetSocket.close();
                 }
             } catch (SocketException e) {
                 if ("Connection reset".equals(e.getMessage())) {
@@ -90,19 +97,25 @@ public class DataTransHandler {
 
     private void createTargetThread(Socket targetSocket, Socket proximalSocket) throws IOException {
         InputStream input = targetSocket.getInputStream();
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+        executorService.execute(() -> {
             try {
                 // 从客户端读取数据并发送到目标服务器
                 int defaultLen = 1024;
                 byte[] buffer = new byte[defaultLen];
                 int bytesRead;
-                while (!targetSocket.isClosed() && (bytesRead = input.read(buffer)) != -1) {
-                    byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
-                    buffer = new byte[defaultLen];
-                    //加密
-                    encryptData(validData);
-                    OutputStream proximalOutput = proximalSocket.getOutputStream();
-                    proximalOutput.write(validData);
+                while (!targetSocket.isClosed()) {
+                    if ((bytesRead = input.read(buffer)) != -1) {
+                        byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
+                        buffer = new byte[defaultLen];
+                        //加密
+                        encryptData(validData);
+                        OutputStream proximalOutput = proximalSocket.getOutputStream();
+                        proximalOutput.write(validData);
+                    }
+                }
+                System.out.println("close a connect for target");
+                if (!proximalSocket.isClosed()) {
+                    proximalSocket.close();
                 }
             } catch (SocketException e) {
                 if ("Connection reset".equals(e.getMessage())) {

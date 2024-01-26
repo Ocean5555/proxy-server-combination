@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -55,12 +56,12 @@ public class Authentication {
                 System.out.println("SOCKS5 Proxy auth Server is running on port " + authPort);
                 while (true) {
                     // 等待proximal连接
-                    Socket clientSocket = authSocket.accept();
+                    Socket proximalAuthSocket = authSocket.accept();
                     System.out.println("Accepted proximal connection from " +
-                            clientSocket.getInetAddress() + ":" + clientSocket.getPort());
+                            proximalAuthSocket.getInetAddress() + ":" + proximalAuthSocket.getPort());
                     //实现权限认证
-                    InputStream inputStream = clientSocket.getInputStream();
-                    OutputStream outputStream = clientSocket.getOutputStream();
+                    InputStream inputStream = proximalAuthSocket.getInputStream();
+                    OutputStream outputStream = proximalAuthSocket.getOutputStream();
                     byte[] data = new byte[1024];
                     int bytesRead;
                     if ((bytesRead = inputStream.read(data)) != -1) {
@@ -68,12 +69,17 @@ public class Authentication {
                         boolean authResult = Authentication.proximalAuth(validData);
                         if (authResult) {
                             System.out.println("auth success");
+                            ServerSocket connectSocket = new ServerSocket(0, 1, InetAddress.getByName("0.0.0.0"));
+                            int connectPort = connectSocket.getLocalPort();
                             int id = idIndex.incrementAndGet();
+                            System.out.println("create connect port:" + connectPort + ", id:" + id);
+                            ProxyServer.startConnectServer(connectSocket, proximalAuthSocket);
                             byte[] token = createToken();
                             tokenMap.put(id, token);
                             byte[] idBytes = BytesUtil.toBytesH(id);
+                            byte[] connectPortBytes = BytesUtil.toBytesH(connectPort);
                             // 0x00认证失败 0x01认证成功
-                            byte[] outData = BytesUtil.concatBytes(new byte[]{0x01}, idBytes, token);
+                            byte[] outData = BytesUtil.concatBytes(new byte[]{0x01}, connectPortBytes, idBytes, token);
                             outputStream.write(outData);
                         } else {
                             System.out.println("auth fail!");
@@ -81,7 +87,7 @@ public class Authentication {
                             outputStream.write(new byte[]{(byte) 0x00});
                         }
                     }
-                    clientSocket.close();
+                    // proximalAuthSocket.close();
                 }
             } catch (IOException e) {
                 e.printStackTrace();

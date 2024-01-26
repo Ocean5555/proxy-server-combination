@@ -3,7 +3,6 @@ package com.ocean.proxy.server.proximal.service;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -21,15 +20,17 @@ public class DistalHandler {
     //与对端建立连接与认证时使用的密钥
     private static final byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
 
+    private static Properties properties;
+
     private static String distalAddress;
 
     private static String username;
 
     private static String password;
 
-    private static String distalConnectPort;
-
     private static byte[] id;
+
+    private static Integer distalConnectPort;
 
     private static byte[] token;
 
@@ -41,6 +42,7 @@ public class DistalHandler {
      * @throws Exception
      */
     public static boolean distalAuth(Properties properties) throws Exception {
+        DistalHandler.properties = properties;
         System.out.println("start auth with distal server");
         username = properties.getProperty("proxy.username");
         password = properties.getProperty("proxy.password");
@@ -50,11 +52,11 @@ public class DistalHandler {
         }
         distalAddress = properties.getProperty("proxy.distal.address");
         String distalAuthPort = properties.getProperty("proxy.distal.auth.port");
-        distalConnectPort = properties.getProperty("proxy.distal.connect.port");
-        if (StringUtils.isAnyEmpty(distalAddress, distalAuthPort, distalConnectPort)) {
+        if (StringUtils.isAnyEmpty(distalAddress, distalAuthPort)) {
             System.out.println("distal address or port missing");
             return false;
         }
+        System.out.println("auth distal " + distalAddress + ":" + distalAuthPort);
         Socket distalAuthSocket = new Socket(distalAddress, Integer.parseInt(distalAuthPort));
         InputStream inputStream = distalAuthSocket.getInputStream();
         OutputStream outputStream = distalAuthSocket.getOutputStream();
@@ -74,14 +76,18 @@ public class DistalHandler {
             if (buffer.get() != 1) {
                 return false;
             }
+            distalConnectPort = buffer.getInt();
             id = new byte[4];
             buffer.get(id);
             token = new byte[16];
             buffer.get(token);
+            System.out.println("receive distal auth response, connectPort:" + distalConnectPort +
+                    ", id:" + BytesUtil.toNumberH(id));
             return true;
         }
         return false;
     }
+
 
     public static void encryptDecrypt(byte[] data) {
         for (int i = 0; i < data.length; i++) {
@@ -91,7 +97,15 @@ public class DistalHandler {
 
     public static void createConnect(Socket clientSocket, String targetAddress, Integer port) throws Exception {
         System.out.println("create connect to target " + targetAddress + ":" + port);
-        Socket distalConnectSocket = new Socket(distalAddress, Integer.parseInt(distalConnectPort));
+        Socket distalConnectSocket;
+        try {
+            distalConnectSocket = new Socket(distalAddress, distalConnectPort);
+        } catch (Exception e) {
+            e.printStackTrace();
+            //连接失败，重新与distal进行认证连接
+            distalAuth(properties);
+            throw new RuntimeException("distal cannot connect!");
+        }
         InputStream inputStream = distalConnectSocket.getInputStream();
         OutputStream outputStream = distalConnectSocket.getOutputStream();
         //发送数据给distal
@@ -113,19 +127,15 @@ public class DistalHandler {
             byte status = buffer.get();
             if (status == 1) {
                 //成功
-                int newPort = buffer.getInt();
-                Socket distalTransSocket = new Socket(distalAddress, newPort);
-                System.out.println("success connect distal trans port:" + newPort);
-                DataTransHandler.bindClientAndDistal(clientSocket, distalTransSocket, token);
+                System.out.println("success connect distal.");
+                DataTransHandler.bindClientAndDistal(clientSocket, distalConnectSocket, token);
             } else {
                 //失败
-                clientSocket.close();
                 throw new RuntimeException("create connect to distal fail");
             }
         } else {
             throw new RuntimeException("not receive data from distal");
         }
-        distalConnectSocket.close();
     }
 
 }
