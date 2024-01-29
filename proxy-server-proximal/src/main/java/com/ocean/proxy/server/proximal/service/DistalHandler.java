@@ -96,7 +96,7 @@ public class DistalHandler {
     }
 
     public static void createConnect(Socket clientSocket, String targetAddress, Integer port) throws Exception {
-        System.out.println("create connect to target " + targetAddress + ":" + port);
+        System.out.println("connect to distal connected port:" + distalConnectPort);
         Socket distalConnectSocket;
         try {
             distalConnectSocket = new Socket(distalAddress, distalConnectPort);
@@ -106,6 +106,8 @@ public class DistalHandler {
             distalAuth(properties);
             throw new RuntimeException("distal cannot connect!");
         }
+
+        System.out.println("create connect to target " + targetAddress + ":" + port);
         InputStream inputStream = distalConnectSocket.getInputStream();
         OutputStream outputStream = distalConnectSocket.getOutputStream();
         //发送数据给distal

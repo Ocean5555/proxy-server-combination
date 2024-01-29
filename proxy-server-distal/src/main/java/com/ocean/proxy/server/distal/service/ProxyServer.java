@@ -42,27 +42,27 @@ public class ProxyServer {
             }
             System.out.println("proximalAuthSocket has closed!");
         });
-        Executors.newSingleThreadExecutor().execute(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(3000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    proximalAuthSocket.sendUrgentData(0xFF);
-                } catch (IOException e) {
-                    System.out.println("proximal socket is close, close the connect port!");
-                    try {
-                        connectSocket.close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    return;
-                }
-            }
-
-        });
+        // Executors.newSingleThreadExecutor().execute(() -> {
+        //     while (true) {
+        //         try {
+        //             Thread.sleep(3000);
+        //         } catch (InterruptedException e) {
+        //             e.printStackTrace();
+        //         }
+        //         try {
+        //             proximalAuthSocket.sendUrgentData(0xFF);
+        //         } catch (IOException e) {
+        //             System.out.println("proximal socket is close, close the connect port!");
+        //             try {
+        //                 connectSocket.close();
+        //             } catch (IOException e1) {
+        //                 e1.printStackTrace();
+        //             }
+        //             return;
+        //         }
+        //     }
+        //
+        // });
     }
 
 
