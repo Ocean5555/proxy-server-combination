@@ -37,30 +37,37 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
-        if (data.length <= 1024) {
-            //加密
-            data = cipherUtil.encryptData(data);
-            //发给proximal
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(data);
-            proximalChannel.writeAndFlush(buf);
-        } else {
-            //数据超过默认缓存区1024长度，分段加密传输
-            int offset = 0;
-            while (offset < data.length) {
-                int len = data.length - offset;
-                if (len >= 1024) {
-                    len = 1024;
-                }
-                byte[] bytes = BytesUtil.splitBytes(data, offset, len);
-                offset += len;
-                bytes = cipherUtil.encryptData(bytes);
-                //发给proximal
-                ByteBuf buf = Unpooled.buffer();
-                buf.writeBytes(bytes);
-                proximalChannel.writeAndFlush(buf);
-            }
-        }
+        //加密
+        data = cipherUtil.encryptData(data);
+        //发给proximal
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes(data);
+        proximalChannel.writeAndFlush(buf);
+
+        // if (data.length <= 1024) {
+        //     //加密
+        //     data = cipherUtil.encryptData(data);
+        //     //发给proximal
+        //     ByteBuf buf = Unpooled.buffer();
+        //     buf.writeBytes(data);
+        //     proximalChannel.writeAndFlush(buf);
+        // } else {
+        //     //数据超过默认缓存区1024长度，分段加密传输
+        //     int offset = 0;
+        //     while (offset < data.length) {
+        //         int len = data.length - offset;
+        //         if (len >= 1024) {
+        //             len = 1024;
+        //         }
+        //         byte[] bytes = BytesUtil.splitBytes(data, offset, len);
+        //         offset += len;
+        //         bytes = cipherUtil.encryptData(bytes);
+        //         //发给proximal
+        //         ByteBuf buf = Unpooled.buffer();
+        //         buf.writeBytes(bytes);
+        //         proximalChannel.writeAndFlush(buf);
+        //     }
+        // }
     }
 
     public boolean writeToTarget(byte[] data) throws Exception {

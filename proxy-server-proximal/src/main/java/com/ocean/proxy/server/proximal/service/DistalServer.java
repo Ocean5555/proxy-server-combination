@@ -51,7 +51,7 @@ public class DistalServer {
                             @Override
                             protected void initChannel(SocketChannel socketChannel) throws Exception {
                                 // 加密后的数据从1024字节变成1040字节，这里设置固定缓存区大小1040，为了接收完整加密数据，才能对数据解密
-                                socketChannel.config().setRecvByteBufAllocator(new FixedRecvByteBufAllocator(1040));
+                                // socketChannel.config().setRecvByteBufAllocator(new FixedRecvByteBufAllocator(1040));
                                 //添加客户端通道的处理器
                                 socketChannel.pipeline().addLast(distalHandler);
                             }
