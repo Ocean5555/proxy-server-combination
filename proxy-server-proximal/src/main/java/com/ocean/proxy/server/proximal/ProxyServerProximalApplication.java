@@ -1,11 +1,10 @@
 package com.ocean.proxy.server.proximal;
 
 
-import com.ocean.proxy.server.proximal.service.DistalHandler;
+import com.ocean.proxy.server.proximal.service.AuthToDistal;
 import com.ocean.proxy.server.proximal.service.Socks4ProxyServer;
 import com.ocean.proxy.server.proximal.service.Socks5ProxyServer;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,12 +14,11 @@ import java.util.concurrent.Executors;
 
 public class ProxyServerProximalApplication {
 
-    public static Properties properties;
-
     public static void main(String[] args) throws Exception {
-        properties = loadProperties();
+        Properties properties = loadProperties();
+        AuthToDistal.properties = properties;
         //与远端服务进行认证，初始化连接，服务启动时执行
-        boolean b = DistalHandler.distalAuth(properties);
+        boolean b = AuthToDistal.distalAuth();
         if (!b) {
             System.out.println("auth fail, close this program");
             return;
@@ -28,6 +26,7 @@ public class ProxyServerProximalApplication {
             System.out.println("auth to distal success!");
         }
         String port = properties.getProperty("proxy.server.port");
+
         try (ServerSocket serverSocket = new ServerSocket(Integer.parseInt(port))) {
             System.out.println("Proxy Server is running on port " + port + ". support socks4 and socks5");
             while (true) {
@@ -62,7 +61,7 @@ public class ProxyServerProximalApplication {
     }
 
 
-    private static Properties loadProperties() throws Exception {
+    public static Properties loadProperties() throws Exception {
         Properties properties = new Properties();
         Properties systemProperties = System.getProperties();
         Set<String> systemPropertiesNames = systemProperties.stringPropertyNames();

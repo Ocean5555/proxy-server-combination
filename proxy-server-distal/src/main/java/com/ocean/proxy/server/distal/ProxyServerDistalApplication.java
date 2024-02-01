@@ -1,31 +1,21 @@
 package com.ocean.proxy.server.distal;
 
 
-import com.ocean.proxy.server.distal.service.Authentication;
+import com.ocean.proxy.server.distal.service.AuthServer;
 import com.ocean.proxy.server.distal.service.ProxyServer;
-import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class ProxyServerDistalApplication {
 
     public static void main(String[] args) throws Exception{
         Properties properties = loadProperties();
-        String authPort = properties.getProperty("proxy.auth.port");
-        if (StringUtils.isEmpty(authPort)) {
-            authPort = "9110";
-        }
-        Authentication.startAuthServer(authPort);
+        Integer authPort = Integer.parseInt(properties.getProperty("proxy.auth.port"));
+        Integer proxyPort = Integer.parseInt(properties.getProperty("proxy.proxy.port"));
+        AuthServer.startAuthServer(authPort, proxyPort);
+        ProxyServer.startProxyServer(proxyPort);
     }
 
     private static Properties loadProperties() throws Exception{

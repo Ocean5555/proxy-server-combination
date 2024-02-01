@@ -1,13 +1,12 @@
 package com.ocean.proxy.server.proximal.service;
 
+import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.Executors;
 
 public class Socks5ProxyServer {
 
@@ -16,7 +15,6 @@ public class Socks5ProxyServer {
             // 实现 SOCKS 握手协商和建立连接的逻辑
             InputStream input = clientSocket.getInputStream();
             OutputStream output = clientSocket.getOutputStream();
-            int version = input.read();     //版本，socks5的值是0x05
             int methodsCount = input.read();    //指示其后的 METHOD 字段所占的字节数
             byte[] methods = new byte[methodsCount];   //methods表示客户端使用的认知方式，0x00表示不认证，0x03表示用户名密码认证
             input.read(methods);
@@ -60,11 +58,12 @@ public class Socks5ProxyServer {
             int targetPort = input.read() << 8 | input.read();
             System.out.println("target:" + targetAddress + ":" + targetPort);
             try {
+                DistalHandler distalHandler = new DistalHandler(clientSocket);
                 if (cmd == 0x01) {
-                    DistalHandler.createConnect(clientSocket, targetAddress, targetPort);
+                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
                     sendConnectionResponse(output, (byte) 0x00, ipv4, targetPort);
                 } else if (cmd == 0x03) {
-                    DistalHandler.createConnect(clientSocket, targetAddress, targetPort);
+                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
                     handleUdpAssociateRequest(output);
                 } else {
                     System.out.println("not support cmd!");
@@ -84,12 +83,13 @@ public class Socks5ProxyServer {
             System.out.println("target:" + targetDomain + ":" + targetPort);
             // 在实际应用中，可以根据 targetDomain 和 targetPort 与目标服务器建立连接
             try {
+                DistalHandler distalHandler = new DistalHandler(clientSocket);
                 if (cmd == 0x01) {
                     // 发送连接成功的响应
-                    DistalHandler.createConnect(clientSocket, targetDomain, targetPort);
+                    DistalServer.createDistalConnect(distalHandler, targetDomain, targetPort);
                     sendConnectionResponse(output, (byte) 0x00, targetDomain, targetPort);
                 } else if (cmd == 0x03) {
-                    DistalHandler.createConnect(clientSocket, targetDomain, targetPort);
+                    DistalServer.createDistalConnect(distalHandler, targetDomain, targetPort);
                     handleUdpAssociateRequest(output);
                 } else {
                     System.out.println("not support cmd!");

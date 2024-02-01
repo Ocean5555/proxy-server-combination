@@ -1,6 +1,7 @@
 package com.ocean.proxy.server.proximal.service;
 
 
+import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.IpUtil;
 
@@ -33,11 +34,11 @@ public class Socks4ProxyServer {
             byte[] dstPort = new byte[2];   //长度2字节，访问目标端口。
             clientInput.read(dstPort);
             int targetPort = (int) BytesUtil.toNumberH(dstPort);
-            System.out.println("port:" + targetPort);
+            System.out.println("target port:" + targetPort);
             byte[] dstIp = new byte[4];   //长度4字节，访问目标IP
             clientInput.read(dstIp);
             String targetAddress = IpUtil.bytesToIpAddress(dstIp);;
-            System.out.println("ip:" + targetAddress);
+            System.out.println("target ip:" + targetAddress);
             byte[] data = new byte[1024];
             int len = clientInput.read(data);
             try {
@@ -45,9 +46,11 @@ public class Socks4ProxyServer {
                     byte[] bytes = BytesUtil.splitBytes(data, 1, len - 2);
                     String domainName = new String(bytes, StandardCharsets.UTF_8);
                     System.out.println("domainName: " + domainName);
-                    DistalHandler.createConnect(clientSocket, domainName, targetPort);
+                    DistalHandler distalHandler = new DistalHandler(clientSocket);
+                    DistalServer.createDistalConnect(distalHandler, domainName, targetPort);
                 }else{
-                    DistalHandler.createConnect(clientSocket, targetAddress, targetPort);
+                    DistalHandler distalHandler = new DistalHandler(clientSocket);
+                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
                 }
                 // 返回的响应信息  | VN | CD | DSTPORT | DSTIP |
                 // VN：长度1字节，响应操作符，固定为0。

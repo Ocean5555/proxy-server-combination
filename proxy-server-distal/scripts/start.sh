@@ -23,14 +23,14 @@ KILLPID=`ps -ef | grep java | grep "$DEPLOY_DIR" | awk '{print $2}'`
 if [ $KILLPID ]; then
   echo 'kill current running pid:'$KILLPID
   kill $KILLPID
-  sleep 2
+  sleep 1
 fi
 
 JAVA_OPTS=" -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true -Dfile.encoding=UTF-8"
 if [ $1 ]; then
  JAVA_OPTS="$JAVA_OPTS -DcareMids=$1"
 fi
-JAVA_MEM_OPTS=" -server -Xms800m -Xmx800m  -XX:MaxNewSize=256m "
+JAVA_MEM_OPTS=" -server -Xms500m -Xmx800m  -XX:MaxNewSize=256m "
 
 echo  "OPTS: $JAVA_OPTS   $JAVA_MEM_OPTS"
 echo "STDOUT: $STDOUT_FILE"
