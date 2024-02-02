@@ -2,12 +2,15 @@ package com.ocean.proxy.server.proximal;
 
 
 import com.ocean.proxy.server.proximal.service.AuthToDistal;
+import com.ocean.proxy.server.proximal.service.HttpProxyServer;
 import com.ocean.proxy.server.proximal.service.Socks4ProxyServer;
 import com.ocean.proxy.server.proximal.service.Socks5ProxyServer;
+import com.ocean.proxy.server.proximal.util.BytesUtil;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -33,7 +36,7 @@ public class ProxyServerProximalApplication {
                 // 等待客户端连接与认证
                 Socket clientSocket = serverSocket.accept();
                 String clientInfo = clientSocket.getInetAddress() + ":" + clientSocket.getPort();
-                System.out.println("=================="+clientInfo+"==================");
+                System.out.println("==================" + clientInfo + "==================");
                 System.out.println("Accepted connection from " + clientInfo);
                 // 开启一个线程处理客户端连接
                 Executors.newSingleThreadScheduledExecutor().execute(() -> {
@@ -45,14 +48,20 @@ public class ProxyServerProximalApplication {
                             Socks5ProxyServer.handleClient(clientSocket);
                         } else if (version == 4) {
                             Socks4ProxyServer.handleClient(clientSocket);
+                        } else if (version == 67) {
+                            HttpProxyServer.handleClient(clientSocket);
                         } else {
                             System.out.println("error socks version!");
+                            byte[] aa = new byte[1024];
+                            int len = clientInput.read(aa);
+                            byte[] validData = BytesUtil.splitBytes(aa, 0, len);
+                            System.out.println(new String(validData, StandardCharsets.UTF_8));
                             clientSocket.close();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    System.out.println("=================="+clientInfo+"==================");
+                    System.out.println("==================" + clientInfo + "==================");
                 });
             }
         } catch (Exception e) {

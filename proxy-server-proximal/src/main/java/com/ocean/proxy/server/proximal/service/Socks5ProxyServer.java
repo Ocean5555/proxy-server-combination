@@ -58,12 +58,12 @@ public class Socks5ProxyServer {
             int targetPort = input.read() << 8 | input.read();
             System.out.println("target:" + targetAddress + ":" + targetPort);
             try {
-                DistalHandler distalHandler = new DistalHandler(clientSocket);
+                DistalHandler distalHandler = new DistalHandler(clientSocket, targetAddress, targetPort);
                 if (cmd == 0x01) {
-                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                     sendConnectionResponse(output, (byte) 0x00, ipv4, targetPort);
                 } else if (cmd == 0x03) {
-                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                     handleUdpAssociateRequest(output);
                 } else {
                     System.out.println("not support cmd!");
@@ -83,13 +83,13 @@ public class Socks5ProxyServer {
             System.out.println("target:" + targetDomain + ":" + targetPort);
             // 在实际应用中，可以根据 targetDomain 和 targetPort 与目标服务器建立连接
             try {
-                DistalHandler distalHandler = new DistalHandler(clientSocket);
+                DistalHandler distalHandler = new DistalHandler(clientSocket, targetDomain, targetPort);
                 if (cmd == 0x01) {
                     // 发送连接成功的响应
-                    DistalServer.createDistalConnect(distalHandler, targetDomain, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                     sendConnectionResponse(output, (byte) 0x00, targetDomain, targetPort);
                 } else if (cmd == 0x03) {
-                    DistalServer.createDistalConnect(distalHandler, targetDomain, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                     handleUdpAssociateRequest(output);
                 } else {
                     System.out.println("not support cmd!");

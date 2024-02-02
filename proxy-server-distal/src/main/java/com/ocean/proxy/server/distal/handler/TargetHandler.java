@@ -6,6 +6,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * <b>Description:</b>  <br/>
  * <b>@Author:</b> Ocean <br/>
@@ -18,6 +20,12 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
     private Channel targetChannel;
 
     private final CipherUtil cipherUtil;
+
+    private boolean connected = false;
+
+    public boolean getConnected() {
+        return connected;
+    }
 
     public TargetHandler(Channel proximalChannel, CipherUtil cipherUtil) {
         this.proximalChannel = proximalChannel;
@@ -94,6 +102,7 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         System.out.println("connect target active!");
         targetChannel = ctx.channel();
+        connected = true;
     }
 
     @Override

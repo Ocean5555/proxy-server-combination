@@ -46,11 +46,11 @@ public class Socks4ProxyServer {
                     byte[] bytes = BytesUtil.splitBytes(data, 1, len - 2);
                     String domainName = new String(bytes, StandardCharsets.UTF_8);
                     System.out.println("domainName: " + domainName);
-                    DistalHandler distalHandler = new DistalHandler(clientSocket);
-                    DistalServer.createDistalConnect(distalHandler, domainName, targetPort);
+                    DistalHandler distalHandler = new DistalHandler(clientSocket, domainName, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                 }else{
-                    DistalHandler distalHandler = new DistalHandler(clientSocket);
-                    DistalServer.createDistalConnect(distalHandler, targetAddress, targetPort);
+                    DistalHandler distalHandler = new DistalHandler(clientSocket, targetAddress, targetPort);
+                    DistalServer.createDistalConnect(distalHandler);
                 }
                 // 返回的响应信息  | VN | CD | DSTPORT | DSTIP |
                 // VN：长度1字节，响应操作符，固定为0。

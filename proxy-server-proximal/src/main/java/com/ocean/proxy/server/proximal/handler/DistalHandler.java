@@ -2,19 +2,20 @@ package com.ocean.proxy.server.proximal.handler;
 
 import com.ocean.proxy.server.proximal.service.AuthToDistal;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
-import com.ocean.proxy.server.proximal.util.CipherUtil;
+import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import javax.xml.ws.BindingType;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
@@ -24,16 +25,24 @@ import java.util.concurrent.Executors;
  */
 public class DistalHandler extends ChannelInboundHandlerAdapter {
 
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("clientReadThread-"));;
+
     private Socket clientSocket;
 
-    private Boolean connected;
+    private Boolean targetConnected;
 
-    public Boolean getConnected() {
-        return connected;
+    private String targetAddress;
+
+    private Integer targetPort;
+
+    public Boolean getTargetConnected() {
+        return targetConnected;
     }
 
-    public DistalHandler(Socket clientSocket) {
+    public DistalHandler(Socket clientSocket, String targetAddress, Integer targetPort) {
         this.clientSocket = clientSocket;
+        this.targetAddress = targetAddress;
+        this.targetPort = targetPort;
     }
 
     /**
@@ -49,7 +58,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
         //获取distal发送过来的消息
-        if (connected == null) {
+        if (targetConnected == null) {
             //第一次连接后接收数据
             //通过默认密码解密
             AuthToDistal.encryptDecrypt(data);
@@ -57,12 +66,12 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             byte status = buffer.get();
             if (status == 1) {
                 //成功
-                System.out.println("success connect distal, status correct.");
-                connected = true;
+                System.out.println("connect info correct.");
+                targetConnected = true;
             } else {
                 //失败
-                System.out.println("fail connect distal, status error.");
-                connected = false;
+                System.out.println("fail connect distal, connect info error.");
+                targetConnected = false;
             }
         } else {
             //接收distal数据转发给client
@@ -81,8 +90,9 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        System.out.println("distal connect active!");
         //开启线程，接收client数据转发给distal
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+        executorService.execute(() -> {
             try {
                 InputStream input = clientSocket.getInputStream();
                 Channel distalChannel = ctx.channel();
@@ -115,6 +125,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 e.printStackTrace();
             }
         });
+        sendTargetConnectData(ctx, targetAddress, targetPort);
     }
 
     @Override
@@ -125,4 +136,23 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         ctx.close();
     }
 
+    private void sendTargetConnectData(ChannelHandlerContext ctx, String targetAddress, Integer targetPort){
+        //发送新建连接的数据给distal
+        byte[] version = new byte[]{0x01};
+        byte[] addressBytes = targetAddress.getBytes(StandardCharsets.UTF_8);
+        byte[] addressLen = BytesUtil.toBytesH(addressBytes.length);
+        byte[] portBytes = BytesUtil.toBytesH(targetPort);
+        byte[] id = AuthToDistal.getId();
+        byte[] token = AuthToDistal.getToken();
+        byte[] data = BytesUtil.concatBytes(version, id, token, addressLen, addressBytes, portBytes);
+        //通过默认密码加密
+        AuthToDistal.encryptDecrypt(data);
+        Channel distalChannel = ctx.channel();
+        if (distalChannel.isOpen()) {
+            ByteBuf buf = Unpooled.buffer();
+            buf.writeBytes(data);
+            distalChannel.writeAndFlush(buf);
+            System.out.println("send connect info!");
+        }
+    }
 }

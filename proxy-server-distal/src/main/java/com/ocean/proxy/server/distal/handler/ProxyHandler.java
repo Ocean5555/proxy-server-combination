@@ -105,6 +105,18 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
             int targetPort = buffer.getInt();
             //创建与target的连接
             TargetServer.createTargetConnect(targetAddress, targetPort, targetHandler);
+            int times = 20;
+            while (!targetHandler.getConnected()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                times--;
+                if (times <= 0) {
+                    throw new RuntimeException("target connected timeout！");
+                }
+            }
             //返回结果数据，格式：状态
             byte[] status = new byte[]{0x01};
             AuthenticationHandler.encryptDecrypt(status);
