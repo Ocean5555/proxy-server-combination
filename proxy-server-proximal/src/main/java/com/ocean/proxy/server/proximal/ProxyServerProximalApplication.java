@@ -6,6 +6,9 @@ import com.ocean.proxy.server.proximal.service.HttpProxyServer;
 import com.ocean.proxy.server.proximal.service.Socks4ProxyServer;
 import com.ocean.proxy.server.proximal.service.Socks5ProxyServer;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -15,9 +18,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
+@SpringBootApplication
 public class ProxyServerProximalApplication {
 
     public static void main(String[] args) throws Exception {
+        SpringApplication.run(ProxyServerProximalApplication.class, args);
+
         Properties properties = loadProperties();
         AuthToDistal.properties = properties;
         //与远端服务进行认证，初始化连接，服务启动时执行
