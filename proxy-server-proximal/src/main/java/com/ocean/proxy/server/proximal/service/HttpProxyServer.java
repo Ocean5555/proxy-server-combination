@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public class HttpProxyServer {
 
-    private static Pattern pattern = Pattern.compile("Host: (.+:\\d+)[\r]\n");
+    private static final Pattern pattern = Pattern.compile("Host: (.+:\\d+)[\r]\n");
 
     public static void handleClient(Socket clientSocket) {
         try {
@@ -38,7 +38,7 @@ public class HttpProxyServer {
                 String[] split = host.split(":");
                 DistalHandler distalHandler = new DistalHandler(clientSocket, split[0], Integer.parseInt(split[1]));
                 DistalServer.createDistalConnect(distalHandler);
-                outputStream.write("HTTP/1.1 200 Connection Established\n".getBytes(StandardCharsets.UTF_8));
+                outputStream.write("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes(StandardCharsets.UTF_8));
             }else{
                 System.out.println("not found target host!");
                 clientSocket.close();

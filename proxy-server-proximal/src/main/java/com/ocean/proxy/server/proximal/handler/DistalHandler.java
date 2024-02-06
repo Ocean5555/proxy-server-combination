@@ -91,6 +91,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         System.out.println("distal connect active!");
+        sendTargetConnectData(ctx, targetAddress, targetPort);
         //开启线程，接收client数据转发给distal
         executorService.execute(() -> {
             try {
@@ -125,7 +126,6 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 e.printStackTrace();
             }
         });
-        sendTargetConnectData(ctx, targetAddress, targetPort);
     }
 
     @Override

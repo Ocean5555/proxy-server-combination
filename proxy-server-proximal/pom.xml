@@ -18,11 +18,25 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web-services</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.sun.xml.messaging.saaj</groupId>
+                    <artifactId>saaj-impl</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jakarta.xml.ws</groupId>
+                    <artifactId>jakarta.xml.ws-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-oxm</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.ws</groupId>
+                    <artifactId>spring-ws-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
