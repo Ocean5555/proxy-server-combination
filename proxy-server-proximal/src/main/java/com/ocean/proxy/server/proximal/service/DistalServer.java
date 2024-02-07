@@ -11,6 +11,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <b>Description:</b>  <br/>
@@ -20,6 +21,8 @@ import java.util.concurrent.Executors;
 public class DistalServer {
 
     private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("distalConnectThread-"));
+
+    private static final AtomicInteger count = new AtomicInteger(0);
 
     private static String distalAddress;
 
@@ -56,7 +59,7 @@ public class DistalServer {
                 //与目标服务建立连接
                 System.out.println("start connect distal " + distalAddress + ":" + distalConnectPort);
                 ChannelFuture channelFuture = bootstrap.connect(distalAddress, distalConnectPort).sync();
-                System.out.println("success connected");
+                System.out.println("success connected. connection total: " + count.incrementAndGet());
                 //对通道关闭进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -64,6 +67,8 @@ public class DistalServer {
             } finally {
                 //关闭线程组
                 eventExecutors.shutdownGracefully();
+                System.out.println("close connection! (" + distalHandler.getTargetAddress() + ":" + distalHandler.getTargetPort() +
+                        ") connection total:" + count.decrementAndGet());
             }
         });
 

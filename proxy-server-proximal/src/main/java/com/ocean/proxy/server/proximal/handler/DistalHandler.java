@@ -9,6 +9,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -25,7 +26,7 @@ import java.util.concurrent.Executors;
  */
 public class DistalHandler extends ChannelInboundHandlerAdapter {
 
-    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("clientReadThread-"));;
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("clientReadThread-"));
 
     private Socket clientSocket;
 
@@ -37,6 +38,14 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
 
     public Boolean getTargetConnected() {
         return targetConnected;
+    }
+
+    public String getTargetAddress() {
+        return targetAddress;
+    }
+
+    public Integer getTargetPort() {
+        return targetPort;
     }
 
     public DistalHandler(Socket clientSocket, String targetAddress, Integer targetPort) {
@@ -78,7 +87,14 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             //通过token解密
             data = AuthToDistal.decryptData(data);
             OutputStream outputStream = clientSocket.getOutputStream();
-            outputStream.write(data);
+            try {
+                outputStream.write(data);
+            } catch (SocketException e) {
+                System.out.println("client exception: " + e.getMessage());
+                ctx.close();
+                clientSocket.close();
+            }
+
         }
     }
 
@@ -124,6 +140,13 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+            }finally {
+                ctx.close();
+                try {
+                    clientSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -131,12 +154,12 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("target ctx occur error, close connect");
+        System.out.println("distal ctx occur error, close connect");
         cause.printStackTrace();
         ctx.close();
     }
 
-    private void sendTargetConnectData(ChannelHandlerContext ctx, String targetAddress, Integer targetPort){
+    private void sendTargetConnectData(ChannelHandlerContext ctx, String targetAddress, Integer targetPort) {
         //发送新建连接的数据给distal
         byte[] version = new byte[]{0x01};
         byte[] addressBytes = targetAddress.getBytes(StandardCharsets.UTF_8);

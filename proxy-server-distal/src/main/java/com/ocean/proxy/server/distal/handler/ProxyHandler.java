@@ -80,10 +80,12 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("proxy ctx occur error, close connect");
-        cause.printStackTrace();
+        System.out.println("proxy ctx occur error, close connect. proxy connection count:" + channelMap.keySet().size());
         String channelId = ctx.channel().id().asLongText();
         channelMap.remove(channelId);
+        if (!cause.getMessage().contains("Connection reset by peer")) {
+            cause.printStackTrace();
+        }
         ctx.channel().close();
     }
 
@@ -114,7 +116,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                 }
                 times--;
                 if (times <= 0) {
-                    throw new RuntimeException("target connected timeout！");
+                    throw new RuntimeException("target connect timeout！");
                 }
             }
             //返回结果数据，格式：状态

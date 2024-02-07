@@ -10,6 +10,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <b>Description:</b>  <br/>
@@ -19,6 +20,8 @@ import java.util.concurrent.Executors;
 public class TargetServer {
 
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
+
+    private static final AtomicInteger count = new AtomicInteger(0);
 
     public static void createTargetConnect(String targetAddress, Integer targetPort, TargetHandler targetHandler) {
         executorService.execute(() -> {
@@ -41,7 +44,8 @@ public class TargetServer {
                 //与目标服务建立连接
                 System.out.println("start connect target " + targetAddress + ":" + targetPort);
                 ChannelFuture channelFuture = bootstrap.connect(targetAddress, targetPort).sync();
-                System.out.println("target connect success.");
+                System.out.println("target connect success. connection total:" + count.incrementAndGet());
+
                 //对通道关闭进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -49,7 +53,8 @@ public class TargetServer {
             } finally {
                 //关闭线程组
                 eventExecutors.shutdownGracefully();
-                System.out.println("close target connect!");
+                System.out.println("close target connect! (" + targetAddress + ":" + targetPort +
+                        ") connection total:" + count.decrementAndGet());
             }
         });
     }

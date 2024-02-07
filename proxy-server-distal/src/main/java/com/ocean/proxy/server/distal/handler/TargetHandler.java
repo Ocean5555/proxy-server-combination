@@ -1,12 +1,9 @@
 package com.ocean.proxy.server.distal.handler;
 
-import com.ocean.proxy.server.distal.util.BytesUtil;
 import com.ocean.proxy.server.distal.util.CipherUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * <b>Description:</b>  <br/>
@@ -109,7 +106,9 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
         System.out.println("target ctx occur error, close connect");
-        cause.printStackTrace();
+        if(!cause.getMessage().contains("Connection reset by peer")){
+            cause.printStackTrace();
+        }
         ctx.close();
     }
 
