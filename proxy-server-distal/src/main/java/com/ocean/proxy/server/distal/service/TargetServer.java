@@ -43,8 +43,9 @@ public class TargetServer {
                         });
                 //与目标服务建立连接
                 System.out.println("start connect target " + targetAddress + ":" + targetPort);
+                System.out.println("connection total:" + count.incrementAndGet());
                 ChannelFuture channelFuture = bootstrap.connect(targetAddress, targetPort).sync();
-                System.out.println("target connect success. connection total:" + count.incrementAndGet());
+                System.out.println("target connect success.");
 
                 //对通道关闭进行监听
                 channelFuture.channel().closeFuture().sync();

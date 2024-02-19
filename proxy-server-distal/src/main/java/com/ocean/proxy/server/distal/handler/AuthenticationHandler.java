@@ -62,6 +62,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
                 ctx.channel().remoteAddress());
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
+        byteBuf.release();
         encryptDecrypt(data);
         boolean authResult = proximalAuth(data);
         ByteBuf buffer = Unpooled.buffer();

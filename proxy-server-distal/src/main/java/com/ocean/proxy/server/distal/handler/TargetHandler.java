@@ -42,6 +42,7 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
+        byteBuf.release();
         //加密
         data = cipherUtil.encryptData(data);
         //发给proximal
@@ -110,6 +111,15 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
             cause.printStackTrace();
         }
         ctx.close();
+        if (proximalChannel.isOpen()) {
+            proximalChannel.close();
+        }
+    }
+
+    public void closeConnect(){
+        if (targetChannel.isOpen()) {
+            targetChannel.close();
+        }
     }
 
 }

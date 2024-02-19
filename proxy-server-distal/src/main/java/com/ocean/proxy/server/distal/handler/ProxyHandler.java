@@ -22,11 +22,14 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
 
     private final Map<String, TargetHandler> channelMap = new ConcurrentHashMap<>();
 
+    private TargetHandler targetHandler;
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
+        byteBuf.release();
         Channel proximalChannel = ctx.channel();
         String channelId = proximalChannel.id().asLongText();
         if (!channelMap.containsKey(channelId)) {
@@ -43,7 +46,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                     byte[] remaining = new byte[buffer.remaining()];
                     buffer.get(remaining);
                     System.out.println("token verification passed");
-                    TargetHandler targetHandler = new TargetHandler(proximalChannel, new CipherUtil(token));
+                    targetHandler = new TargetHandler(proximalChannel, new CipherUtil(token));
                     channelMap.put(channelId, targetHandler);
                     processConnectData(remaining, proximalChannel, targetHandler);
                 } else {
@@ -87,6 +90,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
             cause.printStackTrace();
         }
         ctx.channel().close();
+        closeTargetConnect();
     }
 
     /**
@@ -143,5 +147,11 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
             e.printStackTrace();
         }
 
+    }
+
+    private void closeTargetConnect(){
+        if (targetHandler != null) {
+            targetHandler.closeConnect();
+        }
     }
 }
