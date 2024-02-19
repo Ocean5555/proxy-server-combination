@@ -4,6 +4,7 @@ package com.ocean.proxy.server.proximal.service;
 import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.IpUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * socket4 协议的服务实现
  */
+@Slf4j
 public class Socks4ProxyServer {
 
     public static void handleClient(Socket clientSocket) {
@@ -24,28 +26,28 @@ public class Socks4ProxyServer {
             //| VN | CD | DSTPORT | DSTIP |
             // 实现 SOCKS4 握手协商和建立连接的逻辑
             int cd = clientInput.read();    //长度1字节，操作符号，在本阶段值为1.
-            System.out.println("cd:" + cd);
+            log.info("cd:" + cd);
             if (cd != 1) {
                 clientInput.close();
                 clientOutput.close();
-                System.out.println("cd error!");
+                log.info("cd error!");
                 return;
             }
             byte[] dstPort = new byte[2];   //长度2字节，访问目标端口。
             clientInput.read(dstPort);
             int targetPort = (int) BytesUtil.toNumberH(dstPort);
-            System.out.println("target port:" + targetPort);
+            log.info("target port:" + targetPort);
             byte[] dstIp = new byte[4];   //长度4字节，访问目标IP
             clientInput.read(dstIp);
             String targetAddress = IpUtil.bytesToIpAddress(dstIp);;
-            System.out.println("target ip:" + targetAddress);
+            log.info("target ip:" + targetAddress);
             byte[] data = new byte[1024];
             int len = clientInput.read(data);
             try {
                 if(targetAddress.equals("0.0.0.1")){
                     byte[] bytes = BytesUtil.splitBytes(data, 1, len - 2);
                     String domainName = new String(bytes, StandardCharsets.UTF_8);
-                    System.out.println("domainName: " + domainName);
+                    log.info("domainName: " + domainName);
                     DistalHandler distalHandler = new DistalHandler(clientSocket, domainName, targetPort);
                     DistalServer.createDistalConnect(distalHandler);
                 }else{

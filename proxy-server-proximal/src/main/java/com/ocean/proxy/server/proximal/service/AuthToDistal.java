@@ -2,8 +2,8 @@ package com.ocean.proxy.server.proximal.service;
 
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CipherUtil;
-import lombok.Data;
 import lombok.Synchronized;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.InputStream;
@@ -18,6 +18,7 @@ import java.util.Properties;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2024/1/30 11:33
  */
+@Slf4j
 public class AuthToDistal {
 
     //与对端建立连接与认证时使用的密钥
@@ -52,23 +53,23 @@ public class AuthToDistal {
     @Synchronized
     public static boolean distalAuth() throws Exception {
         if (properties == null) {
-            System.out.println("missing properties!");
+            log.info("missing properties!");
             return false;
         }
-        System.out.println("start auth with distal server");
+        log.info("start auth with distal server");
         username = properties.getProperty("proxy.username");
         password = properties.getProperty("proxy.password");
         if (StringUtils.isAnyEmpty(username, password)) {
-            System.out.println("username or password missing");
+            log.info("username or password missing");
             return false;
         }
         String distalAddress = properties.getProperty("proxy.distal.address");
         String distalAuthPort = properties.getProperty("proxy.distal.auth.port");
         if (StringUtils.isAnyEmpty(distalAddress, distalAuthPort)) {
-            System.out.println("distal address or port missing");
+            log.info("distal address or port missing");
             return false;
         }
-        System.out.println("auth distal " + distalAddress + ":" + distalAuthPort);
+        log.info("auth distal " + distalAddress + ":" + distalAuthPort);
         Socket distalAuthSocket = new Socket(distalAddress, Integer.parseInt(distalAuthPort));
         InputStream inputStream = distalAuthSocket.getInputStream();
         OutputStream outputStream = distalAuthSocket.getOutputStream();
@@ -94,7 +95,7 @@ public class AuthToDistal {
             buffer.get(id);
             token = new byte[16];
             buffer.get(token);
-            System.out.println("receive distal auth response, connectPort:" + distalConnectPort +
+            log.info("receive distal auth response, connectPort:" + distalConnectPort +
                     ", id:" + BytesUtil.toNumberH(id) + ", token:" + BytesUtil.toHexString(token));
             cipherUtil = new CipherUtil(token);
             DistalServer.setDistalAddress(distalAddress);

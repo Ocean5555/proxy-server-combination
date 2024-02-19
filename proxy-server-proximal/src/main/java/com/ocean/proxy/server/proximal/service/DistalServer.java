@@ -8,6 +8,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,9 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2024/1/30 11:15
  */
+@Slf4j
 public class DistalServer {
 
-    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("distalConnectThread-"));
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("distalConn-"));
 
     private static final AtomicInteger count = new AtomicInteger(0);
 
@@ -57,9 +59,9 @@ public class DistalServer {
                             }
                         });
                 //与目标服务建立连接
-                System.out.println("start connect distal " + distalAddress + ":" + distalConnectPort);
+                log.info("start connect distal. connection total: " + count.incrementAndGet());
                 ChannelFuture channelFuture = bootstrap.connect(distalAddress, distalConnectPort).sync();
-                System.out.println("success connected. connection total: " + count.incrementAndGet());
+                log.info("success connected.");
                 //对通道关闭进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -67,7 +69,7 @@ public class DistalServer {
             } finally {
                 //关闭线程组
                 eventExecutors.shutdownGracefully();
-                System.out.println("close connection! (" + distalHandler.getTargetAddress() + ":" + distalHandler.getTargetPort() +
+                log.info("close connection! (" + distalHandler.getTargetAddress() + ":" + distalHandler.getTargetPort() +
                         ") connection total:" + count.decrementAndGet());
             }
         });
@@ -81,16 +83,17 @@ public class DistalServer {
             }
             times--;
             if (times <= 0) {
-                throw new RuntimeException("token auth timeout！");
+                throw new RuntimeException("connect timeout！"+ distalHandler.getTargetAddress() + ":"
+                        + distalHandler.getTargetPort());
             }
         }
         if (!distalHandler.getTargetConnected()) {
             //token认证失败，可能distal重启了，需要重新认证获取新的token
-            System.out.println("token auth failed！");
+            log.info("token auth failed！");
             try {
                 boolean b = AuthToDistal.distalAuth();
                 if (!b) {
-                    System.out.println("auth fail, close this program");
+                    log.info("auth fail, close this program");
                     System.exit(0);
                 }
             } catch (Exception e) {

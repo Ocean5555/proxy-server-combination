@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,9 +25,10 @@ import java.util.concurrent.Executors;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2023/12/11 11:44
  */
+@Slf4j
 public class DistalHandler extends ChannelInboundHandlerAdapter {
 
-    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("clientReadThread-"));
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("clientRead-"));
 
     private Socket clientSocket;
 
@@ -66,6 +68,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
+        byteBuf.release();
         //获取distal发送过来的消息
         if (targetConnected == null) {
             //第一次连接后接收数据
@@ -75,11 +78,11 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             byte status = buffer.get();
             if (status == 1) {
                 //成功
-                System.out.println("connect info correct.");
+                log.info("connect info correct.");
                 targetConnected = true;
             } else {
                 //失败
-                System.out.println("fail connect distal, connect info error.");
+                log.info("fail connect distal, connect info error.");
                 targetConnected = false;
             }
         } else {
@@ -90,7 +93,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             try {
                 outputStream.write(data);
             } catch (SocketException e) {
-                System.out.println("client exception: " + e.getMessage());
+                log.info("client exception: " + e.getMessage());
                 ctx.close();
                 clientSocket.close();
             }
@@ -106,26 +109,31 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("distal connect active!");
+        log.info("distal connect active!");
         sendTargetConnectData(ctx, targetAddress, targetPort);
         //开启线程，接收client数据转发给distal
         executorService.execute(() -> {
             try {
+                if (clientSocket.isClosed()) {
+                    return;
+                }
                 InputStream input = clientSocket.getInputStream();
                 Channel distalChannel = ctx.channel();
                 //源端与目标端数据传输
                 int defaultLen = 1024;
                 byte[] buffer = new byte[defaultLen];
                 int bytesRead;
-                while (!clientSocket.isClosed() && distalChannel.isOpen()) {
+                while (!clientSocket.isClosed()) {
                     if ((bytesRead = input.read(buffer)) != -1) {
                         byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
                         buffer = new byte[defaultLen];
-                        //通过token加密
-                        validData = AuthToDistal.encryptData(validData);
-                        ByteBuf buf = Unpooled.buffer();
-                        buf.writeBytes(validData);
-                        distalChannel.writeAndFlush(buf);
+                        if (distalChannel.isOpen()) {
+                            //通过token加密
+                            validData = AuthToDistal.encryptData(validData);
+                            ByteBuf buf = Unpooled.buffer();
+                            buf.writeBytes(validData);
+                            distalChannel.writeAndFlush(buf);
+                        }
                     } else {
                         Thread.sleep(10);
                     }
@@ -133,7 +141,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             } catch (SocketException e) {
                 if ("Connection reset".equals(e.getMessage())) {
                     // 处理Connection Reset状态
-                    System.out.println("Connection reset by peer");
+                    log.info("Connection reset by peer");
                 } else {
                     // 处理其他SocketException
                     e.printStackTrace();
@@ -141,7 +149,9 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             } catch (Exception e) {
                 e.printStackTrace();
             }finally {
-                ctx.close();
+                if (ctx.channel().isOpen()) {
+                    ctx.channel().close();
+                }
                 try {
                     clientSocket.close();
                 } catch (IOException e) {
@@ -154,7 +164,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("distal ctx occur error, close connect");
+        log.info("distal ctx occur error, close connect");
         cause.printStackTrace();
         ctx.close();
     }
@@ -175,7 +185,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             ByteBuf buf = Unpooled.buffer();
             buf.writeBytes(data);
             distalChannel.writeAndFlush(buf);
-            System.out.println("send connect info!");
+            log.info("send connect info!");
         }
     }
 }

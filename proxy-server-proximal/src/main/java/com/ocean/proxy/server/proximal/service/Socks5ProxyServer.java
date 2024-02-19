@@ -2,12 +2,14 @@ package com.ocean.proxy.server.proximal.service;
 
 import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+@Slf4j
 public class Socks5ProxyServer {
 
     public static void handleClient(Socket clientSocket) {
@@ -19,7 +21,7 @@ public class Socks5ProxyServer {
             byte[] methods = new byte[methodsCount];   //methods表示客户端使用的认知方式，0x00表示不认证，0x03表示用户名密码认证
             input.read(methods);
             String s = BytesUtil.toHexString(methods);
-            System.out.println("client auth type: 0x" + s);
+            log.info("client auth type: 0x" + s);
             // 这里假设支持无需认证的方法，即0x00
             output.write(new byte[]{(byte) 0x05, (byte) 0x00});
 
@@ -56,7 +58,7 @@ public class Socks5ProxyServer {
             input.read(ipv4);
             String targetAddress = bytesToIpAddress(ipv4);
             int targetPort = input.read() << 8 | input.read();
-            System.out.println("target:" + targetAddress + ":" + targetPort);
+            log.info("target:" + targetAddress + ":" + targetPort);
             try {
                 DistalHandler distalHandler = new DistalHandler(clientSocket, targetAddress, targetPort);
                 if (cmd == 0x01) {
@@ -66,7 +68,7 @@ public class Socks5ProxyServer {
                     DistalServer.createDistalConnect(distalHandler);
                     handleUdpAssociateRequest(output);
                 } else {
-                    System.out.println("not support cmd!");
+                    log.info("not support cmd!");
                     throw new RuntimeException("not support cmd");
                 }
             } catch (Exception e) {
@@ -80,7 +82,7 @@ public class Socks5ProxyServer {
             input.read(domainBytes);
             String targetDomain = new String(domainBytes);
             int targetPort = input.read() << 8 | input.read();
-            System.out.println("target:" + targetDomain + ":" + targetPort);
+            log.info("target:" + targetDomain + ":" + targetPort);
             // 在实际应用中，可以根据 targetDomain 和 targetPort 与目标服务器建立连接
             try {
                 DistalHandler distalHandler = new DistalHandler(clientSocket, targetDomain, targetPort);
@@ -92,7 +94,7 @@ public class Socks5ProxyServer {
                     DistalServer.createDistalConnect(distalHandler);
                     handleUdpAssociateRequest(output);
                 } else {
-                    System.out.println("not support cmd!");
+                    log.info("not support cmd!");
                     throw new RuntimeException("not support cmd");
                 }
             } catch (Exception e) {

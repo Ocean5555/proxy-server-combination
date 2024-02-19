@@ -3,6 +3,7 @@ package com.ocean.proxy.server.proximal.service;
 
 import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +18,7 @@ import java.util.regex.Pattern;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2024/2/2 13:52
  */
+@Slf4j
 public class HttpProxyServer {
 
     private static final Pattern pattern = Pattern.compile("Host: (.+:\\d+)[\r]\n");
@@ -34,13 +36,13 @@ public class HttpProxyServer {
             Matcher matcher = pattern.matcher(requestData);
             if (matcher.find()) {
                 String host = matcher.group(1);
-                System.out.println("target :"+ host);
+                log.info("target :"+ host);
                 String[] split = host.split(":");
                 DistalHandler distalHandler = new DistalHandler(clientSocket, split[0], Integer.parseInt(split[1]));
                 DistalServer.createDistalConnect(distalHandler);
                 outputStream.write("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes(StandardCharsets.UTF_8));
             }else{
-                System.out.println("not found target host!");
+                log.info("not found target host!" + requestData);
                 clientSocket.close();
             }
         } catch (Exception e) {
