@@ -10,11 +10,12 @@ import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import com.ocean.proxy.server.proximal.util.SystemUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import javax.annotation.PreDestroy;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -26,13 +27,19 @@ import java.util.concurrent.Executors;
 
 @SpringBootApplication
 @Slf4j
-public class ProxyServerProximalApplication {
+public class ProxyServerProximalApplication implements CommandLineRunner {
 
     private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("proxyConn-"));
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         SpringApplication.run(ProxyServerProximalApplication.class, args);
+    }
 
+    @Value("${server.port}")
+    private Integer httpPort;
+
+    @Override
+    public void run(String... args) throws Exception {
         Properties properties = loadProperties();
         AuthToDistal.properties = properties;
         //与远端服务进行认证，初始化连接，服务启动时执行
@@ -44,6 +51,15 @@ public class ProxyServerProximalApplication {
             log.info("auth to distal success!");
         }
         String port = properties.getProperty("proxy.server.port");
+        String systemProxySet = "127.0.0.1" + ":" + port;
+        if (args.length > 0) {
+            String isPac = args[0];
+            if ("pac".equalsIgnoreCase(isPac)) {
+                SystemUtil.isPac = true;
+                systemProxySet = "http://127.0.0.1:" + httpPort + "/pac/1.pac";
+            }
+        }
+        SystemUtil.startSystemProxy(systemProxySet);
 
         try (ServerSocket serverSocket = new ServerSocket(Integer.parseInt(port))) {
             log.info("Proxy Server is running on port " + port + ". support HTTP 、socks4 and socks5");
@@ -78,7 +94,7 @@ public class ProxyServerProximalApplication {
                             log.info("use http proxy");
                             HttpProxyServer.handleClient(clientSocket);
                         } else {
-                            log.error("error socks version: "+version);
+                            log.error("error socks version: " + version);
                             byte[] aa = new byte[1024];
                             int len = clientInput.read(aa);
                             byte[] validData = BytesUtil.concatBytes(new byte[]{(byte) version}, BytesUtil.splitBytes(aa, 0, len));
@@ -95,7 +111,6 @@ public class ProxyServerProximalApplication {
             e.printStackTrace();
         }
     }
-
 
     public static Properties loadProperties() throws Exception {
         Properties properties = new Properties();
@@ -123,4 +138,8 @@ public class ProxyServerProximalApplication {
         return properties;
     }
 
+    @PreDestroy
+    public void resetSystemProxy() {
+        SystemUtil.closeSystemProxy();
+    }
 }
