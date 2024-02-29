@@ -71,6 +71,7 @@ public class SystemUtil {
             log.info("set proxy command: \n"+ String.join(" ", command));
             Process process = processBuilder.start();
             process.waitFor();
+            process.destroy();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -88,6 +89,7 @@ public class SystemUtil {
             log.info("close proxy command: \n"+ String.join(" ", command));
             Process process = processBuilder.start();
             process.waitFor();
+            process.destroy();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -114,8 +116,10 @@ public class SystemUtil {
             log.info("set proxy command: \n"+ String.join(" ", command) +"\n" + String.join(" ", command2));
             Process process = processBuilder.start();
             process.waitFor();
+            process.destroy();
             Process process2 = processBuilder2.start();
             process2.waitFor();
+            process2.destroy();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -142,8 +146,10 @@ public class SystemUtil {
             log.info("close proxy command: \n"+ String.join(" ", command) +"\n" + String.join(" ", command2));
             Process process = processBuilder.start();
             process.waitFor();
+            process.destroy();
             Process process2 = processBuilder2.start();
             process2.waitFor();
+            process2.destroy();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -151,31 +157,35 @@ public class SystemUtil {
 
     private static String getWindowsTaskByPort(int portNumber) {
         try {
-            String regex = "\\s+\\w+\\s+[\\d\\.]+:" + portNumber+".+";
-
+            // String regex = "\\s+\\w+\\s+[\\d\\.]+:" + portNumber+".+";
             // 执行 netstat 命令
-            Process netstatProcess = Runtime.getRuntime().exec("netstat -ano");
+            String[] commandArr = new String[]{"cmd", "/c", "netstat -ano | find \"" + portNumber+"\""};
+            Process netstatProcess = Runtime.getRuntime().exec(commandArr);
             BufferedReader netstatReader = new BufferedReader(new InputStreamReader(netstatProcess.getInputStream()));
-
             String netstatLine;
             while ((netstatLine = netstatReader.readLine()) != null) {
-                if (netstatLine.matches(regex)) {
+                int i1 = netstatLine.indexOf(":");
+                if (netstatLine.substring(i1+1).startsWith(String.valueOf(portNumber))) {
                     // 获取对应的进程ID
                     String[] netstatTokens = netstatLine.trim().split("\\s+");
                     String processId = netstatTokens[netstatTokens.length - 1];
                     // 执行 tasklist 命令，获取进程信息
-                    Process tasklistProcess = Runtime.getRuntime().exec("tasklist /fi \"PID eq " + processId + "\"");
+                    Process tasklistProcess = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "tasklist | find \"" + processId+"\""});
                     BufferedReader tasklistReader = new BufferedReader(new InputStreamReader(tasklistProcess.getInputStream()));
                     String tasklistLine;
-                    int i = 0;
                     while ((tasklistLine = tasklistReader.readLine()) != null) {
-                        i++;
-                        if (i == 4) {
-                            return tasklistLine.split(" ")[0];
-                        }
+                        netstatProcess.destroy();
+                        tasklistProcess.destroy();
+                        netstatReader.close();
+                        tasklistReader.close();
+                        return tasklistLine.split(" ")[0];
                     }
+                    tasklistReader.close();
+                    tasklistProcess.destroy();
                 }
             }
+            netstatReader.close();
+            netstatProcess.destroy();
         } catch (IOException e) {
             e.printStackTrace();
         }

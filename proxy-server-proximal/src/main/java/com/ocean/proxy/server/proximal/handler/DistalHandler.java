@@ -120,13 +120,14 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 InputStream input = clientSocket.getInputStream();
                 Channel distalChannel = ctx.channel();
                 //源端与目标端数据传输
-                int defaultLen = 1024;
-                byte[] buffer = new byte[defaultLen];
                 int bytesRead;
                 while (!clientSocket.isClosed()) {
-                    if ((bytesRead = input.read(buffer)) != -1) {
-                        byte[] validData = BytesUtil.splitBytes(buffer, 0, bytesRead);
-                        buffer = new byte[defaultLen];
+                    if ((bytesRead = input.available()) != 0) {
+                        byte[] validData = new byte[bytesRead];
+                        int read = input.read(validData);
+                        if (read == -1) {
+                            continue;
+                        }
                         if (distalChannel.isOpen()) {
                             //通过token加密
                             validData = AuthToDistal.encryptData(validData);
@@ -135,7 +136,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                             distalChannel.writeAndFlush(buf);
                         }
                     } else {
-                        Thread.sleep(10);
+                        Thread.sleep(50);
                     }
                 }
             } catch (SocketException e) {

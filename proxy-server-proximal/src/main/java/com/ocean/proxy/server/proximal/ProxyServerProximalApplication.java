@@ -60,8 +60,11 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
             }
         }
         SystemUtil.startSystemProxy(systemProxySet);
+        new Thread(() -> startProxyServer(Integer.parseInt(port)), "proxyServerThread").start();
+    }
 
-        try (ServerSocket serverSocket = new ServerSocket(Integer.parseInt(port))) {
+    private void startProxyServer(Integer port) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             log.info("Proxy Server is running on port " + port + ". support HTTP 、socks4 and socks5");
             while (true) {
                 // 等待客户端连接与认证
@@ -105,6 +108,18 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
                         e.printStackTrace();
                     }
                     log.info("==================" + finalClientInfo + "==================");
+                    while (true) {
+                        try {
+                            Thread.sleep(3000);
+                            clientSocket.sendUrgentData(0xFF);
+                        } catch (Exception e) {
+                            try {
+                                clientSocket.close();
+                            } catch (Exception ignore) {
+                            }
+                            return;
+                        }
+                    }
                 });
             }
         } catch (Exception e) {
