@@ -113,10 +113,10 @@ public class AuthToDistal {
     }
 
     public static byte[] encryptData(byte[] data) throws Exception{
-        return cipherUtil.encryptData(data);
+        return cipherUtil.encryptDataAes(data);
     }
 
     public static byte[] decryptData(byte[] data) throws Exception{
-        return cipherUtil.decryptData(data);
+        return cipherUtil.decryptDataAes(data);
     }
 }

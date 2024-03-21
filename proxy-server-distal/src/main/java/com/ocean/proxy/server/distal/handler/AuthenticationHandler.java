@@ -29,8 +29,6 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
 
     public static final Map<Integer, byte[]> tokenMap = new ConcurrentHashMap<>();
 
-    private static final AtomicInteger idIndex = new AtomicInteger();
-
     private static final Properties userProperties;
 
     static {
@@ -68,7 +66,6 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         ByteBuf buffer = Unpooled.buffer();
         if (authResult) {
             System.out.println("auth success");
-            // int id = idIndex.incrementAndGet();
             byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
             int id = (int) (BytesUtil.toNumberH(idBytes));
             byte[] token = createToken();
@@ -92,7 +89,6 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        // ctx.writeAndFlush(Unpooled.copiedBuffer("服务端已收到消息，并给你发送一个问号?", CharsetUtil.UTF_8));
     }
 
     @Override

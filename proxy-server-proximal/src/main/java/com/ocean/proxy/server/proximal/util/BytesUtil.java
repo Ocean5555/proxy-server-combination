@@ -48,6 +48,13 @@ public class BytesUtil {
         return result;
     }
 
+    public static byte[] splitBytes(byte[] bytes, int begin) {
+        int length = bytes.length - begin;
+        byte[] result = new byte[length];
+        System.arraycopy(bytes, begin, result, 0, length);
+        return result;
+    }
+
     /**
      * 向字节数组指定位置插入另外一个字节数组
      *

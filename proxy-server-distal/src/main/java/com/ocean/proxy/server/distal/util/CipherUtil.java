@@ -10,11 +10,11 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class CipherUtil {
 
-    private Cipher encryptCipher;
+    private final Cipher encryptCipher;
 
-    private Cipher decryptCipher;
+    private final Cipher decryptCipher;
 
-    private byte a;
+    private final byte a;
 
     public CipherUtil(byte[] token) throws Exception {
         byte a = token[0];
@@ -22,8 +22,8 @@ public class CipherUtil {
             a ^= token[i];
         }
         this.a = a;
-        // encryptCipher = initEncryptCipher(token);
-        // decryptCipher = initDecryptCipher(token);
+        encryptCipher = initEncryptCipher(token);
+        decryptCipher = initDecryptCipher(token);
     }
 
     public byte[] encryptData(byte[] data) throws Exception {
@@ -32,7 +32,6 @@ public class CipherUtil {
             result[i] = (byte)(a ^ data[i]);
         }
         return result;
-        // return encryptCipher.doFinal(data);
     }
 
     public byte[] decryptData(byte[] data) throws Exception {
@@ -41,7 +40,14 @@ public class CipherUtil {
             result[i] = (byte)(a ^ data[i]);
         }
         return result;
-        // return decryptCipher.doFinal(data);
+    }
+
+    public byte[] encryptDataAes(byte[] data) throws Exception {
+        return encryptCipher.doFinal(data);
+    }
+
+    public byte[] decryptDataAes(byte[] data) throws Exception {
+        return decryptCipher.doFinal(data);
     }
 
     private Cipher initEncryptCipher(byte[] token) throws Exception {

@@ -56,6 +56,8 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         this.targetPort = targetPort;
     }
 
+    private byte[] cache = new byte[0];
+
     /**
      * 收到数据
      *
@@ -88,16 +90,38 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         } else {
             //接收distal数据转发给client
             //通过token解密
-            data = AuthToDistal.decryptData(data);
-            OutputStream outputStream = clientSocket.getOutputStream();
-            try {
-                outputStream.write(data);
-            } catch (SocketException e) {
-                log.info("client exception: " + e.getMessage());
-                ctx.close();
-                clientSocket.close();
+            cache = BytesUtil.concatBytes(cache, data);
+            ByteBuffer buffer = ByteBuffer.wrap(cache);
+            int length = buffer.getInt();
+            while (buffer.remaining() >= length) {
+                //拿到一条完整加密数据
+                byte[] encryptData = new byte[length];
+                buffer.get(encryptData);
+                //解密发送
+                byte[] sendData = AuthToDistal.decryptData(encryptData);
+                OutputStream outputStream = clientSocket.getOutputStream();
+                try {
+                    outputStream.write(sendData);
+                } catch (SocketException e) {
+                    log.info("client exception: " + e.getMessage());
+                    ctx.close();
+                    clientSocket.close();
+                }
+                if (buffer.remaining() > 4) {
+                    length = buffer.getInt();
+                }
             }
-
+            if(buffer.remaining() == 0){
+                cache = new byte[0];
+            } else if (buffer.remaining() > 4) {
+                byte[] lastData = new byte[buffer.remaining()];
+                buffer.get(lastData);
+                cache = BytesUtil.concatBytes(BytesUtil.toBytesH(length), lastData);
+            }else{
+                byte[] lastData = new byte[buffer.remaining()];
+                buffer.get(lastData);
+                cache = lastData;
+            }
         }
     }
 
@@ -131,7 +155,9 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                         if (distalChannel.isOpen()) {
                             //通过token加密
                             validData = AuthToDistal.encryptData(validData);
+                            byte[] length = BytesUtil.toBytesH(validData.length);
                             ByteBuf buf = Unpooled.buffer();
+                            buf.writeBytes(length);
                             buf.writeBytes(validData);
                             distalChannel.writeAndFlush(buf);
                         }

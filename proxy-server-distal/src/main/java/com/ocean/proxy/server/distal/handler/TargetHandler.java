@@ -1,9 +1,12 @@
 package com.ocean.proxy.server.distal.handler;
 
+import com.ocean.proxy.server.distal.util.BytesUtil;
 import com.ocean.proxy.server.distal.util.CipherUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+
+import java.nio.ByteBuffer;
 
 /**
  * <b>Description:</b>  <br/>
@@ -19,6 +22,8 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
     private final CipherUtil cipherUtil;
 
     private boolean connected = false;
+
+    private byte[] cache = new byte[0];
 
     public boolean getConnected() {
         return connected;
@@ -44,45 +49,44 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
         byteBuf.readBytes(data);
         byteBuf.release();
         //加密
-        data = cipherUtil.encryptData(data);
+        data = cipherUtil.encryptDataAes(data);
+        byte[] length = BytesUtil.toBytesH(data.length);
         //发给proximal
         ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes(length);
         buf.writeBytes(data);
         proximalChannel.writeAndFlush(buf);
-
-        // if (data.length <= 1024) {
-        //     //加密
-        //     data = cipherUtil.encryptData(data);
-        //     //发给proximal
-        //     ByteBuf buf = Unpooled.buffer();
-        //     buf.writeBytes(data);
-        //     proximalChannel.writeAndFlush(buf);
-        // } else {
-        //     //数据超过默认缓存区1024长度，分段加密传输
-        //     int offset = 0;
-        //     while (offset < data.length) {
-        //         int len = data.length - offset;
-        //         if (len >= 1024) {
-        //             len = 1024;
-        //         }
-        //         byte[] bytes = BytesUtil.splitBytes(data, offset, len);
-        //         offset += len;
-        //         bytes = cipherUtil.encryptData(bytes);
-        //         //发给proximal
-        //         ByteBuf buf = Unpooled.buffer();
-        //         buf.writeBytes(bytes);
-        //         proximalChannel.writeAndFlush(buf);
-        //     }
-        // }
     }
 
     public boolean writeToTarget(byte[] data) throws Exception {
         if (targetChannel != null && targetChannel.isOpen()) {
-            //解密
-            data = cipherUtil.decryptData(data);
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(data);
-            targetChannel.writeAndFlush(buf);
+            cache = BytesUtil.concatBytes(cache, data);
+            ByteBuffer buffer = ByteBuffer.wrap(cache);
+            int length = buffer.getInt();
+            while (buffer.remaining() >= length) {
+                //拿到一条完整加密数据
+                byte[] encryptData = new byte[length];
+                buffer.get(encryptData);
+                //解密发送
+                byte[] sendData = cipherUtil.decryptDataAes(encryptData);
+                ByteBuf buf = Unpooled.buffer();
+                buf.writeBytes(sendData);
+                targetChannel.writeAndFlush(buf);
+                if (buffer.remaining() > 4) {
+                    length = buffer.getInt();
+                }
+            }
+            if(buffer.remaining() == 0){
+                cache = new byte[0];
+            } else if (buffer.remaining() > 4) {
+                byte[] lastData = new byte[buffer.remaining()];
+                buffer.get(lastData);
+                cache = BytesUtil.concatBytes(BytesUtil.toBytesH(length), lastData);
+            }else{
+                byte[] lastData = new byte[buffer.remaining()];
+                buffer.get(lastData);
+                cache = lastData;
+            }
             return true;
         } else {
             System.out.println("target channel is closed!");
