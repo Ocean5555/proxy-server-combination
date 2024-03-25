@@ -1,7 +1,6 @@
 package com.ocean.proxy.server.proximal.service;
 
 
-import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,8 +37,9 @@ public class HttpProxyServer {
                 String host = matcher.group(1);
                 log.info("target :"+ host);
                 String[] split = host.split(":");
-                DistalHandler distalHandler = new DistalHandler(clientSocket, split[0], Integer.parseInt(split[1]));
-                DistalServer.createDistalConnect(distalHandler);
+                String targetAddress = split[0];
+                Integer targetPort = Integer.parseInt(split[1]);
+                DistalServer.useDistalConnect(clientSocket, targetAddress, targetPort);
                 outputStream.write("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes(StandardCharsets.UTF_8));
             }else{
                 log.info("not found target host!" + requestData);

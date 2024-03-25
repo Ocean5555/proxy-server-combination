@@ -24,12 +24,6 @@ public class AuthToDistal {
     //与对端建立连接与认证时使用的密钥
     private static final byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
 
-    public static Properties properties;
-
-    private static String username;
-
-    private static String password;
-
     private static byte[] id;
 
     private static byte[] token;
@@ -51,26 +45,22 @@ public class AuthToDistal {
      * @throws Exception
      */
     @Synchronized
-    public static boolean distalAuth() throws Exception {
-        if (properties == null) {
-            log.info("missing properties!");
-            return false;
-        }
+    public static boolean distalAuth(ConfigReader configReader) throws Exception {
         log.info("start auth with distal server");
-        username = properties.getProperty("proxy.username");
-        password = properties.getProperty("proxy.password");
+        String username = configReader.getUsername();
+        String password = configReader.getPassword();
         if (StringUtils.isAnyEmpty(username, password)) {
             log.info("username or password missing");
             return false;
         }
-        String distalAddress = properties.getProperty("proxy.distal.address");
-        String distalAuthPort = properties.getProperty("proxy.distal.auth.port");
-        if (StringUtils.isAnyEmpty(distalAddress, distalAuthPort)) {
+        String distalAddress = configReader.getDistalAddress();
+        Integer distalAuthPort = configReader.getDistalAuthPort();
+        if (StringUtils.isEmpty(distalAddress) || distalAuthPort == null) {
             log.info("distal address or port missing");
             return false;
         }
         log.info("auth distal " + distalAddress + ":" + distalAuthPort);
-        Socket distalAuthSocket = new Socket(distalAddress, Integer.parseInt(distalAuthPort));
+        Socket distalAuthSocket = new Socket(distalAddress, distalAuthPort);
         InputStream inputStream = distalAuthSocket.getInputStream();
         OutputStream outputStream = distalAuthSocket.getOutputStream();
         byte[] version = new byte[]{0x01};
@@ -98,13 +88,11 @@ public class AuthToDistal {
             log.info("receive distal auth response, connectPort:" + distalConnectPort +
                     ", id:" + BytesUtil.toNumberH(id) + ", token:" + BytesUtil.toHexString(token));
             cipherUtil = new CipherUtil(token);
-            DistalServer.setDistalAddress(distalAddress);
-            DistalServer.setDistalConnectPort(distalConnectPort);
+            DistalServer.init(configReader, distalConnectPort);
             return true;
         }
         return false;
     }
-
 
     public static void encryptDecrypt(byte[] data) {
         for (int i = 0; i < data.length; i++) {

@@ -1,10 +1,7 @@
 package com.ocean.proxy.server.proximal;
 
 
-import com.ocean.proxy.server.proximal.service.AuthToDistal;
-import com.ocean.proxy.server.proximal.service.HttpProxyServer;
-import com.ocean.proxy.server.proximal.service.Socks4ProxyServer;
-import com.ocean.proxy.server.proximal.service.Socks5ProxyServer;
+import com.ocean.proxy.server.proximal.service.*;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import com.ocean.proxy.server.proximal.util.SystemUtil;
@@ -40,17 +37,16 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        Properties properties = loadProperties();
-        AuthToDistal.properties = properties;
+        ConfigReader configReader = new ConfigReader();
         //与远端服务进行认证，初始化连接，服务启动时执行
-        boolean b = AuthToDistal.distalAuth();
+        boolean b = AuthToDistal.distalAuth(configReader);
         if (!b) {
             log.error("auth fail, close this program");
             return;
         } else {
             log.info("auth to distal success!");
         }
-        String port = properties.getProperty("proxy.server.port");
+        String port = configReader.getPort();
         String systemProxySet = "127.0.0.1" + ":" + port;
         if (args.length > 0) {
             String isPac = args[0];
@@ -125,32 +121,6 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static Properties loadProperties() throws Exception {
-        Properties properties = new Properties();
-        Properties systemProperties = System.getProperties();
-        Set<String> systemPropertiesNames = systemProperties.stringPropertyNames();
-        if (systemPropertiesNames.size() > 0) {
-            for (String systemPropertiesName : systemPropertiesNames) {
-                properties.setProperty(systemPropertiesName,
-                        systemProperties.getProperty(systemPropertiesName));
-            }
-        }
-        InputStream resourceAsStream = ProxyServerProximalApplication.class.getClassLoader().getResourceAsStream("application.properties");
-        if (resourceAsStream != null) {
-            Properties propertiesFile = new Properties();
-            propertiesFile.load(resourceAsStream);
-            Set<String> filePropertiesNames = propertiesFile.stringPropertyNames();
-            if (filePropertiesNames.size() > 0) {
-                for (String filePropertiesName : filePropertiesNames) {
-                    if (properties.get(filePropertiesName) == null) {
-                        properties.setProperty(filePropertiesName, propertiesFile.getProperty(filePropertiesName));
-                    }
-                }
-            }
-        }
-        return properties;
     }
 
     @PreDestroy
