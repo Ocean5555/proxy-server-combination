@@ -14,6 +14,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.Socket;
@@ -187,13 +188,15 @@ public class DistalServer {
         byte[] id = AuthToDistal.getId();
         byte[] token = AuthToDistal.getToken();
         byte[] data = BytesUtil.concatBytes(version, id, token, addressLen, addressBytes, portBytes);
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 99));
+        byte[] sendData = BytesUtil.concatBytes(data, randomData);
         //通过默认密码加密
-        AuthToDistal.encryptDecrypt(data);
+        AuthToDistal.encryptDecrypt(sendData);
         ChannelHandlerContext ctx = distalHandler.getCtx();
         Channel distalChannel = ctx.channel();
         if (distalChannel.isOpen()) {
             ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(data);
+            buf.writeBytes(sendData);
             distalChannel.writeAndFlush(buf);
             log.info("send connect info!");
         }

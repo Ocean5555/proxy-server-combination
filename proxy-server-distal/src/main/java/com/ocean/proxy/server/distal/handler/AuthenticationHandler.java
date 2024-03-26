@@ -5,17 +5,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import lombok.Synchronized;
-import org.apache.commons.lang3.BitField;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <b>Description:</b>  <br/>
@@ -64,6 +64,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         encryptDecrypt(data);
         boolean authResult = proximalAuth(data);
         ByteBuf buffer = Unpooled.buffer();
+        byte[] outData;
         if (authResult) {
             System.out.println("auth success");
             byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
@@ -73,18 +74,17 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
             System.out.println("alloc id:" + id + ", token:" + BytesUtil.toHexString(token));
             byte[] proxyPortBytes = BytesUtil.toBytesH(proxyPort);
             // 0x00认证失败 0x01认证成功
-            byte[] outData = BytesUtil.concatBytes(new byte[]{0x01}, proxyPortBytes, idBytes, token);
-            encryptDecrypt(outData);
-            buffer.writeBytes(outData);
-            ctx.writeAndFlush(buffer);
+            outData = BytesUtil.concatBytes(new byte[]{0x01}, proxyPortBytes, idBytes, token);
         } else {
             System.out.println("auth fail!");
             // 0x00认证失败 0x01认证成功
-            byte[] outData = new byte[]{(byte) 0x00};
-            encryptDecrypt(outData);
-            buffer.writeBytes(outData);
-            ctx.writeAndFlush(buffer);
+            outData = new byte[]{(byte) 0x00};
         }
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 355));
+        byte[] sendData = BytesUtil.concatBytes(outData, randomData);
+        encryptDecrypt(sendData);
+        buffer.writeBytes(sendData);
+        ctx.writeAndFlush(buffer);
     }
 
     @Override

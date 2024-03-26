@@ -8,6 +8,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.commons.lang3.RandomUtils;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -125,9 +127,11 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
             }
             //返回结果数据，格式：状态
             byte[] status = new byte[]{0x01};
-            AuthenticationHandler.encryptDecrypt(status);
+            byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 99));
+            byte[] sendData = BytesUtil.concatBytes(status, randomData);
+            AuthenticationHandler.encryptDecrypt(sendData);
             ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(status);
+            buf.writeBytes(sendData);
             proximalChannel.writeAndFlush(buf);
             System.out.println("response success to proximal.");
         } catch (Exception e) {

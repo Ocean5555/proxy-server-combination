@@ -4,6 +4,7 @@ import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CipherUtil;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.InputStream;
@@ -11,7 +12,6 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 
 /**
  * <b>Description:</b>  <br/>
@@ -69,8 +69,10 @@ public class AuthToDistal {
         byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
         byte[] passwordLen = BytesUtil.toBytesH(passwordBytes.length);
         byte[] requestData = BytesUtil.concatBytes(version, usernameLen, usernameBytes, passwordLen, passwordBytes);
-        encryptDecrypt(requestData);
-        outputStream.write(requestData);
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(25, 278));
+        byte[] sendData = BytesUtil.concatBytes(requestData, randomData);
+        encryptDecrypt(sendData);
+        outputStream.write(sendData);
 
         //1字节结果（1代表认证成功，其他代表失败），4字节proximal端标识，32字节token
         byte[] result = new byte[25];
