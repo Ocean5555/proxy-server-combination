@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class AuthToDistal {
 
     //与对端建立连接与认证时使用的密钥
-    private static final byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
+    private static byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
 
     private static byte[] id;
 
@@ -59,7 +59,11 @@ public class AuthToDistal {
             log.info("distal address or port missing");
             return false;
         }
-        log.info("auth distal " + distalAddress + ":" + distalAuthPort);
+        String authSecret = configReader.getProperties().getProperty("auth.secret");
+        if (StringUtils.isNotEmpty(authSecret)) {
+            secretKey = authSecret.getBytes(StandardCharsets.UTF_8);
+        }
+        log.info("auth distal " + distalAddress + ":" + distalAuthPort + ", use secret:" + new String(secretKey));
         Socket distalAuthSocket = new Socket(distalAddress, distalAuthPort);
         InputStream inputStream = distalAuthSocket.getInputStream();
         OutputStream outputStream = distalAuthSocket.getOutputStream();
@@ -102,11 +106,11 @@ public class AuthToDistal {
         }
     }
 
-    public static byte[] encryptData(byte[] data) throws Exception{
+    public static byte[] encryptData(byte[] data) throws Exception {
         return cipherUtil.encryptDataAes(data);
     }
 
-    public static byte[] decryptData(byte[] data) throws Exception{
+    public static byte[] decryptData(byte[] data) throws Exception {
         return cipherUtil.decryptDataAes(data);
     }
 }

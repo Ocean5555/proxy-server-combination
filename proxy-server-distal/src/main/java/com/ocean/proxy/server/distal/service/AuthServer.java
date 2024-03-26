@@ -18,7 +18,7 @@ import java.util.concurrent.Executors;
  */
 public class AuthServer {
 
-    public static void startAuthServer(Integer authPort, Integer proxyPort) {
+    public static void startAuthServer(Integer authPort, Integer proxyPort, String authSecret) {
         Executors.newSingleThreadExecutor().execute(() -> {
             //创建2个线程组
             NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
@@ -38,7 +38,7 @@ public class AuthServer {
                             @Override
                             protected void initChannel(SocketChannel socketChannel) throws Exception {
                                 //给pipeline管道设置处理器
-                                socketChannel.pipeline().addLast(new AuthenticationHandler(proxyPort));
+                                socketChannel.pipeline().addLast(new AuthenticationHandler(proxyPort, authSecret));
                             }
                         });
                 //绑定端口号，启动服务端

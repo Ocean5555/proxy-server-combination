@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
 
     //与对端建立连接与认证时使用的密钥
-    private static final byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
+    private static byte[] secretKey = "j8s1j9d0sa82@()U(@)$".getBytes(StandardCharsets.UTF_8);
 
     public static final Map<Integer, byte[]> tokenMap = new ConcurrentHashMap<>();
 
@@ -48,7 +48,11 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
 
     private final Integer proxyPort;
 
-    public AuthenticationHandler(Integer proxyPort) {
+    public AuthenticationHandler(Integer proxyPort, String authSecret) {
+        if (StringUtils.isNotEmpty(authSecret)) {
+            secretKey = authSecret.getBytes(StandardCharsets.UTF_8);
+        }
+        System.out.println("auth secret:" + new String(secretKey));
         this.proxyPort = proxyPort;
     }
 

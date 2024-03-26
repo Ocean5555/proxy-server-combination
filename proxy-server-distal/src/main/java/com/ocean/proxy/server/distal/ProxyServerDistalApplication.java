@@ -3,6 +3,7 @@ package com.ocean.proxy.server.distal;
 
 import com.ocean.proxy.server.distal.service.AuthServer;
 import com.ocean.proxy.server.distal.service.ProxyServer;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.InputStream;
 import java.util.Properties;
@@ -14,7 +15,8 @@ public class ProxyServerDistalApplication {
         Properties properties = loadProperties();
         Integer authPort = Integer.parseInt(properties.getProperty("proxy.auth.port"));
         Integer proxyPort = Integer.parseInt(properties.getProperty("proxy.proxy.port"));
-        AuthServer.startAuthServer(authPort, proxyPort);
+        String authSecret = properties.getProperty("auth.secret");
+        AuthServer.startAuthServer(authPort, proxyPort, authSecret);
         ProxyServer.startProxyServer(proxyPort);
     }
 
