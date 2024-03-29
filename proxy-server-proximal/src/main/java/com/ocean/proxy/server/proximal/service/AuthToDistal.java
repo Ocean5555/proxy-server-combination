@@ -47,12 +47,6 @@ public class AuthToDistal {
     @Synchronized
     public static boolean distalAuth(ConfigReader configReader) throws Exception {
         log.info("start auth with distal server");
-        String username = configReader.getUsername();
-        String password = configReader.getPassword();
-        if (StringUtils.isAnyEmpty(username, password)) {
-            log.info("username or password missing");
-            return false;
-        }
         String distalAddress = configReader.getDistalAddress();
         Integer distalAuthPort = configReader.getDistalAuthPort();
         if (StringUtils.isEmpty(distalAddress) || distalAuthPort == null) {
@@ -65,7 +59,54 @@ public class AuthToDistal {
         }
         log.info("auth distal " + distalAddress + ":" + distalAuthPort + ", use secret:" + new String(secretKey));
         Socket distalAuthSocket = new Socket(distalAddress, distalAuthPort);
+        if (id != null && token != null) {
+            log.info("id and token exist, check auth status.");
+            boolean b = checkAuthStatus(distalAuthSocket);
+            if (b) {
+                log.info("auth status valid!");
+                return true;
+            }else{
+                log.warn("auth status invalid! start auth again.");
+            }
+        }
+        String username = configReader.getUsername();
+        String password = configReader.getPassword();
+        if (StringUtils.isAnyEmpty(username, password)) {
+            log.info("username or password missing");
+            return false;
+        }
+        //发送认证信息
+        sendAuthInfo(distalAuthSocket, username, password);
+        //接收认证结果
+        int distalConnectPort = getAuthResponse(distalAuthSocket);
+        if (distalConnectPort == 0) {
+            return false;
+        }
+        DistalServer.init(configReader, distalConnectPort);
+        return true;
+    }
+
+    private static boolean checkAuthStatus(Socket distalAuthSocket)throws Exception{
         InputStream inputStream = distalAuthSocket.getInputStream();
+        OutputStream outputStream = distalAuthSocket.getOutputStream();
+        byte[] version = new byte[]{0x02};
+        byte[] requestData = BytesUtil.concatBytes(version, id, token);
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(20, 120));
+        byte[] sendData = BytesUtil.concatBytes(requestData, randomData);
+        encryptDecrypt(sendData);
+        outputStream.write(sendData);
+        byte[] result = new byte[1];
+        if (inputStream.read(result) != -1) {
+            encryptDecrypt(result);
+            if (result[0] == 1) {
+                //id和token有效
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void sendAuthInfo(Socket distalAuthSocket, String username, String password) throws Exception{
         OutputStream outputStream = distalAuthSocket.getOutputStream();
         byte[] version = new byte[]{0x01};
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
@@ -73,31 +114,32 @@ public class AuthToDistal {
         byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
         byte[] passwordLen = BytesUtil.toBytesH(passwordBytes.length);
         byte[] requestData = BytesUtil.concatBytes(version, usernameLen, usernameBytes, passwordLen, passwordBytes);
-        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(25, 278));
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(25, 120));
         byte[] sendData = BytesUtil.concatBytes(requestData, randomData);
         encryptDecrypt(sendData);
         outputStream.write(sendData);
+    }
 
+    private static int getAuthResponse(Socket distalAuthSocket)throws Exception{
+        InputStream inputStream = distalAuthSocket.getInputStream();
         //1字节结果（1代表认证成功，其他代表失败），4字节proximal端标识，32字节token
         byte[] result = new byte[25];
         if (inputStream.read(result) != -1) {
             encryptDecrypt(result);
             ByteBuffer buffer = ByteBuffer.wrap(result);
-            if (buffer.get() != 1) {
-                return false;
+            if (buffer.get() == 1) {
+                int distalConnectPort = buffer.getInt();
+                id = new byte[4];
+                buffer.get(id);
+                token = new byte[16];
+                buffer.get(token);
+                log.info("receive distal auth response, connectPort:" + distalConnectPort +
+                        ", id:" + BytesUtil.toNumberH(id) + ", token:" + BytesUtil.toHexString(token));
+                cipherUtil = new CipherUtil(token);
+                return distalConnectPort;
             }
-            int distalConnectPort = buffer.getInt();
-            id = new byte[4];
-            buffer.get(id);
-            token = new byte[16];
-            buffer.get(token);
-            log.info("receive distal auth response, connectPort:" + distalConnectPort +
-                    ", id:" + BytesUtil.toNumberH(id) + ", token:" + BytesUtil.toHexString(token));
-            cipherUtil = new CipherUtil(token);
-            DistalServer.init(configReader, distalConnectPort);
-            return true;
         }
-        return false;
+        return 0;
     }
 
     public static void encryptDecrypt(byte[] data) {

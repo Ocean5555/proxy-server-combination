@@ -66,27 +66,44 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         byteBuf.readBytes(data);
         byteBuf.release();
         encryptDecrypt(data);
-        boolean authResult = proximalAuth(data);
-        ByteBuf buffer = Unpooled.buffer();
+        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+        int version = byteBuffer.get();     //版本，ocean1的值是0x01
+
         byte[] outData;
-        if (authResult) {
-            System.out.println("auth success");
-            byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
-            int id = (int) (BytesUtil.toNumberH(idBytes));
-            byte[] token = createToken();
-            tokenMap.put(id, token);
-            System.out.println("alloc id:" + id + ", token:" + BytesUtil.toHexString(token));
-            byte[] proxyPortBytes = BytesUtil.toBytesH(proxyPort);
-            // 0x00认证失败 0x01认证成功
-            outData = BytesUtil.concatBytes(new byte[]{0x01}, proxyPortBytes, idBytes, token);
-        } else {
-            System.out.println("auth fail!");
-            // 0x00认证失败 0x01认证成功
-            outData = new byte[]{(byte) 0x00};
+        if (version == 1) {
+            //执行认证
+            boolean authResult = proximalAuth(byteBuffer);
+            if (authResult) {
+                System.out.println("auth success");
+                byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
+                int id = (int) (BytesUtil.toNumberH(idBytes));
+                byte[] token = createToken();
+                tokenMap.put(id, token);
+                System.out.println("alloc id:" + id + ", token:" + BytesUtil.toHexString(token));
+                byte[] proxyPortBytes = BytesUtil.toBytesH(proxyPort);
+                // 0x00认证失败 0x01认证成功
+                outData = BytesUtil.concatBytes(new byte[]{0x01}, proxyPortBytes, idBytes, token);
+            } else {
+                System.out.println("auth fail!");
+                // 0x00认证失败 0x01认证成功
+                outData = new byte[]{(byte) 0x00};
+            }
+        }else {
+            //检查proximal认证状态
+            boolean authValid = checkAuthStatus(byteBuffer);
+            if (authValid) {
+                System.out.println("auth valid");
+                outData = new byte[]{0x01};
+            }else{
+                System.out.println("auth invalid, need re auth ");
+                outData = new byte[]{0x00};
+            }
         }
+
         byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 355));
         byte[] sendData = BytesUtil.concatBytes(outData, randomData);
         encryptDecrypt(sendData);
+        ByteBuf buffer = Unpooled.buffer();
         buffer.writeBytes(sendData);
         ctx.writeAndFlush(buffer);
     }
@@ -102,7 +119,6 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         cause.printStackTrace();
         byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
         int id = (int) (BytesUtil.toNumberH(idBytes));
-        tokenMap.remove(id);
         ctx.channel().close();
     }
 
@@ -123,20 +139,17 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
     /**
      * proximal的连接认证
      *
-     * @param data
+     * @param buffer
      * @return
      * @throws IOException
      */
-    public static boolean proximalAuth(byte[] data) {
-        ByteBuffer buffer = ByteBuffer.wrap(data);
-        int version = buffer.get();     //版本，ocean1的值是0x01
+    public static boolean proximalAuth(ByteBuffer buffer) {
         int userLen = buffer.getInt(); //用户名的长度
         byte[] username = new byte[userLen];
         buffer.get(username);
         int pwdLen = buffer.getInt();
         byte[] password = new byte[pwdLen];
         buffer.get(password);
-
         String user = new String(username, StandardCharsets.UTF_8);
         String configPwd = userProperties.getProperty(user);
         String pwd = new String(password, StandardCharsets.UTF_8);
@@ -149,6 +162,24 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
             return true;
         } else {
             System.out.println("password error");
+        }
+        return false;
+    }
+
+    /**
+     * proximal发来id和token的有效检查
+     * @param buffer
+     * @return
+     */
+    public static boolean checkAuthStatus(ByteBuffer buffer) {
+        int id = buffer.getInt();
+        byte[] token = new byte[16];
+        buffer.get(token);
+        if (tokenMap.containsKey(id)) {
+            byte[] cacheToken = tokenMap.get(id);
+            if (BytesUtil.toHexString(token).equals(BytesUtil.toHexString(cacheToken))) {
+                return true;
+            }
         }
         return false;
     }

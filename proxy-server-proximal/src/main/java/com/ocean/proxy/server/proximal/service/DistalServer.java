@@ -95,7 +95,7 @@ public class DistalServer {
             distalHandler = createDistalHandler();
         }
         useActive(distalHandler, clientSocket, targetAddress, targetPort);
-        checkTargetConnectStatus(distalHandler, targetAddress, targetPort);
+        waitConnectTarget(distalHandler, targetAddress, targetPort);
     }
 
     private static DistalHandler createDistalHandler(){
@@ -149,9 +149,9 @@ public class DistalServer {
         });
     }
 
-    private static void checkTargetConnectStatus(DistalHandler distalHandler, String targetAddress, Integer targetPort){
+    private static void waitConnectTarget(DistalHandler distalHandler, String targetAddress, Integer targetPort){
         int times = 30;
-        while (distalHandler.getTargetConnected() == 0) {
+        while (distalHandler.getTargetConnectStatus() == -1) {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -159,22 +159,22 @@ public class DistalServer {
             }
             times--;
             if (times <= 0) {
+                log.error("connect timeout！"+ targetAddress + ":" + targetPort);
+                distalHandler.getCtx().close();
                 throw new RuntimeException("connect timeout！"+ targetAddress + ":" + targetPort);
             }
         }
-        if (distalHandler.getTargetConnected() == 2) {
-            //token认证失败，可能distal重启了，需要重新认证获取新的token
-            log.info("token auth failed！");
+        if (distalHandler.getTargetConnectStatus() == 2) {
+            boolean b = false;
             try {
-                boolean b = AuthToDistal.distalAuth(configReader);
-                if (!b) {
-                    log.info("auth fail, close this program");
-                    System.exit(0);
-                }
+                b = AuthToDistal.distalAuth(configReader);
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            throw new RuntimeException("token auth failed！");
+            if (!b) {
+                log.info("auth fail, close this program");
+                System.exit(0);
+            }
         }
     }
 

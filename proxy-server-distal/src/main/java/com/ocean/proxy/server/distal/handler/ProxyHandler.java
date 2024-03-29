@@ -52,14 +52,14 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                     channelMap.put(channelId, targetHandler);
                     processConnectData(remaining, proximalChannel, targetHandler);
                 } else {
-                    System.out.println("token verification fail!");
+                    System.out.println("token verification fail! token is wrong");
                     System.out.println("receive token:" + BytesUtil.toHexString(token)
                             + ", cacheToken:" + BytesUtil.toHexString(cacheToken));
-                    responseConnectFail(proximalChannel);
+                    responseAuthFail(proximalChannel);
                 }
             } else {
-                System.out.println("token verification fail!");
-                responseConnectFail(proximalChannel);
+                System.out.println("token verification fail! not exist id:" + id);
+                responseAuthFail(proximalChannel);
             }
             System.out.println("=======================================");
         } else {
@@ -125,32 +125,40 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                     throw new RuntimeException("target connect timeout！");
                 }
             }
-            //返回结果数据，格式：状态
-            byte[] status = new byte[]{0x01};
-            byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 99));
-            byte[] sendData = BytesUtil.concatBytes(status, randomData);
-            AuthenticationHandler.encryptDecrypt(sendData);
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(sendData);
-            proximalChannel.writeAndFlush(buf);
-            System.out.println("response success to proximal.");
+            responseConnectSuccess(proximalChannel);
         } catch (Exception e) {
             e.printStackTrace();
             responseConnectFail(proximalChannel);
-            System.out.println("response fail to proximal.");
         }
     }
 
-    private void responseConnectFail(Channel proximalChannel) {
-        try {
-            //返回与目标服务连接失败的信息
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeBytes(new byte[]{0x00});
-            proximalChannel.writeAndFlush(buffer);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    //返回与目标服务连接成功的信息
+    private void responseConnectSuccess(Channel proximalChannel) {
+        byte[] status = new byte[]{0x01};
+        responseData(proximalChannel, status);
+        System.out.println("response success to proximal.");
+    }
 
+    //返回与目标服务连接失败的信息
+    private void responseConnectFail(Channel proximalChannel) {
+        byte[] status = new byte[]{0x00};
+        responseData(proximalChannel, status);
+        System.out.println("response fail to proximal.");
+    }
+
+    //返回认证失败信息
+    private void responseAuthFail(Channel proximalChannel) {
+        byte[] status = new byte[]{0x02};
+        responseData(proximalChannel, status);
+    }
+
+    private void responseData(Channel proximalChannel, byte[] status){
+        ByteBuf buffer = Unpooled.buffer();
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(5, 35));
+        byte[] sendData = BytesUtil.concatBytes(status, randomData);
+        AuthenticationHandler.encryptDecrypt(sendData);
+        buffer.writeBytes(sendData);
+        proximalChannel.writeAndFlush(buffer);
     }
 
     private void closeTargetConnect(){

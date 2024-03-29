@@ -50,9 +50,9 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * 提交给distal的target地址和端口，是否由distal成功连接
-     * 0：未连接，1：成功连接，2：连接后断开
+     * -1:未连接， 0：连接失败，1：成功连接，2：认证失败
      */
-    private Integer targetConnected = 0;
+    private Integer targetConnectStatus = -1;
 
     /**
      * 与distal连接后，使用的通道
@@ -78,20 +78,23 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         byteBuf.readBytes(data);
         byteBuf.release();
         //获取distal发送过来的消息
-        if (targetConnected == 0) {
+        if (targetConnectStatus == -1) {
             //第一次连接后接收数据
             //通过默认密码解密
             AuthToDistal.encryptDecrypt(data);
             ByteBuffer buffer = ByteBuffer.wrap(data);
-            byte status = buffer.get();
+            int status = buffer.get();
+            targetConnectStatus = status;
             if (status == 1) {
                 //成功
                 log.info("connect info correct.");
-                targetConnected = 1;
-            } else {
-                //失败
-                log.info("fail connect distal, connect info error.");
-                targetConnected = 2;
+            } else if (status == 2){
+                //token认证失败，可能distal重启了
+                log.error("fail auth to distal.***************************************************************");
+            } else if (status == 0) {
+                throw new RuntimeException("distal connect target fail!");
+            }else {
+                throw new RuntimeException("status code error! " + status);
             }
         } else {
             //接收distal数据转发给client
