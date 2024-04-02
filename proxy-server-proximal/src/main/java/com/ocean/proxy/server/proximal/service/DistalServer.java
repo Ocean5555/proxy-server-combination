@@ -4,11 +4,7 @@ import com.ocean.proxy.server.proximal.handler.DistalHandler;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -71,6 +67,9 @@ public class DistalServer {
                     if (connectQueue.size() < min) {
                         while (connectQueue.size() < max) {
                             DistalHandler distalHandler = createDistalHandler();
+                            if (distalHandler == null) {
+                                continue;
+                            }
                             connectQueue.offer(distalHandler);
                             log.info("create new connection into pool:" + connectQueue.size());
                         }
@@ -94,6 +93,9 @@ public class DistalServer {
         }else {
             distalHandler = createDistalHandler();
         }
+        if (distalHandler == null) {
+            return;
+        }
         useActive(distalHandler, clientSocket, targetAddress, targetPort);
         waitConnectTarget(distalHandler, targetAddress, targetPort);
     }
@@ -107,6 +109,9 @@ public class DistalServer {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+        if (distalHandler.getEffective() == 2) {
+            return null;
         }
         return distalHandler;
     }
@@ -160,7 +165,7 @@ public class DistalServer {
             times--;
             if (times <= 0) {
                 log.error("connect timeout！"+ targetAddress + ":" + targetPort);
-                distalHandler.getCtx().close();
+                distalHandler.close();
                 throw new RuntimeException("connect timeout！"+ targetAddress + ":" + targetPort);
             }
         }
@@ -192,13 +197,7 @@ public class DistalServer {
         byte[] sendData = BytesUtil.concatBytes(data, randomData);
         //通过默认密码加密
         AuthToDistal.encryptDecrypt(sendData);
-        ChannelHandlerContext ctx = distalHandler.getCtx();
-        Channel distalChannel = ctx.channel();
-        if (distalChannel.isOpen()) {
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(sendData);
-            distalChannel.writeAndFlush(buf);
-            log.info("send connect info!");
-        }
+        distalHandler.sendData(sendData);
+        log.info("send connect info!");
     }
 }

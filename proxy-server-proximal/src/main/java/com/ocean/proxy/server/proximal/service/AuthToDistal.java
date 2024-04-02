@@ -60,12 +60,12 @@ public class AuthToDistal {
         log.info("auth distal " + distalAddress + ":" + distalAuthPort + ", use secret:" + new String(secretKey));
         Socket distalAuthSocket = new Socket(distalAddress, distalAuthPort);
         if (id != null && token != null) {
-            log.info("id and token exist, check auth status.");
+            log.info("id(" + BytesUtil.toNumberH(id) + ") and token(" + BytesUtil.toHexString(token) + ") exist, check auth status.");
             boolean b = checkAuthStatus(distalAuthSocket);
             if (b) {
                 log.info("auth status valid!");
                 return true;
-            }else{
+            } else {
                 log.warn("auth status invalid! start auth again.");
             }
         }
@@ -86,7 +86,7 @@ public class AuthToDistal {
         return true;
     }
 
-    private static boolean checkAuthStatus(Socket distalAuthSocket)throws Exception{
+    private static boolean checkAuthStatus(Socket distalAuthSocket) throws Exception {
         InputStream inputStream = distalAuthSocket.getInputStream();
         OutputStream outputStream = distalAuthSocket.getOutputStream();
         byte[] version = new byte[]{0x02};
@@ -95,7 +95,7 @@ public class AuthToDistal {
         byte[] sendData = BytesUtil.concatBytes(requestData, randomData);
         encryptDecrypt(sendData);
         outputStream.write(sendData);
-        byte[] result = new byte[1];
+        byte[] result = new byte[1024];
         if (inputStream.read(result) != -1) {
             encryptDecrypt(result);
             if (result[0] == 1) {
@@ -106,7 +106,7 @@ public class AuthToDistal {
         return false;
     }
 
-    private static void sendAuthInfo(Socket distalAuthSocket, String username, String password) throws Exception{
+    private static void sendAuthInfo(Socket distalAuthSocket, String username, String password) throws Exception {
         OutputStream outputStream = distalAuthSocket.getOutputStream();
         byte[] version = new byte[]{0x01};
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
@@ -120,10 +120,10 @@ public class AuthToDistal {
         outputStream.write(sendData);
     }
 
-    private static int getAuthResponse(Socket distalAuthSocket)throws Exception{
+    private static int getAuthResponse(Socket distalAuthSocket) throws Exception {
         InputStream inputStream = distalAuthSocket.getInputStream();
         //1字节结果（1代表认证成功，其他代表失败），4字节proximal端标识，32字节token
-        byte[] result = new byte[25];
+        byte[] result = new byte[1024];
         if (inputStream.read(result) != -1) {
             encryptDecrypt(result);
             ByteBuffer buffer = ByteBuffer.wrap(result);

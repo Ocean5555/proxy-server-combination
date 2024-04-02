@@ -147,10 +147,10 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         //开启线程，接收client数据转发给distal
         executorService.execute(() -> {
             try {
-                while (clientSocket == null) {
+                while (ctx.channel().isOpen() && clientSocket == null) {
                     Thread.sleep(15);
                 }
-                if (clientSocket.isClosed()) {
+                if (!ctx.channel().isOpen() || clientSocket.isClosed()) {
                     return;
                 }
                 InputStream input = clientSocket.getInputStream();
@@ -205,6 +205,19 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         //发生异常，关闭通道
         log.info("distal ctx occur error, close connect");
         cause.printStackTrace();
+        ctx.close();
+    }
+
+    public void sendData(byte[] data){
+        Channel distalChannel = ctx.channel();
+        if (distalChannel.isOpen()) {
+            ByteBuf buf = Unpooled.buffer();
+            buf.writeBytes(data);
+            distalChannel.writeAndFlush(buf);
+        }
+    }
+
+    public void close(){
         ctx.close();
     }
 
