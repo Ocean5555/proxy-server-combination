@@ -3,7 +3,6 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.ocean</groupId>
     <artifactId>proxy-server-proximal</artifactId>
     <version>1.0</version>
     <name>proxy-server-proximal</name>
@@ -14,30 +13,7 @@
         <version>parent-1.0-SNAPSHOT</version>
     </parent>
 
-
     <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web-services</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.sun.xml.messaging.saaj</groupId>
-                    <artifactId>saaj-impl</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>jakarta.xml.ws</groupId>
-                    <artifactId>jakarta.xml.ws-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-oxm</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework.ws</groupId>
-                    <artifactId>spring-ws-core</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
     </dependencies>
 
     <build>

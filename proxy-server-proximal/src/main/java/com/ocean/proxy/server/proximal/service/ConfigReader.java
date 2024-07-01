@@ -29,6 +29,8 @@ public class ConfigReader {
 
     private Integer distalAuthPort;
 
+    private Integer HttpPort;
+
     public ConfigReader() throws Exception{
         properties = loadProperties();
         if (properties == null) {
@@ -40,6 +42,7 @@ public class ConfigReader {
         password = properties.getProperty("proxy.password");
         distalAddress = properties.getProperty("proxy.distal.address");
         distalAuthPort = Integer.parseInt(properties.getProperty("proxy.distal.auth.port"));
+        HttpPort = Integer.parseInt(properties.getProperty("server.port"));
     }
 
     public Properties loadProperties() throws Exception {

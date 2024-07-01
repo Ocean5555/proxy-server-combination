@@ -5,38 +5,25 @@ import com.ocean.proxy.server.proximal.service.*;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import com.ocean.proxy.server.proximal.util.SystemUtil;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import javax.annotation.PreDestroy;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@SpringBootApplication
 @Slf4j
-public class ProxyServerProximalApplication implements CommandLineRunner {
+public class ProxyServerProximalApplication {
 
     private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("proxyConn-"));
 
-    public static void main(String[] args) {
-        SpringApplication.run(ProxyServerProximalApplication.class, args);
-    }
-
-    @Value("${server.port}")
-    private Integer httpPort;
-
-    @Override
-    public void run(String... args) throws Exception {
+    public static void main(String... args) throws Exception {
+        args = new String[]{"pac"};
         ConfigReader configReader = new ConfigReader();
         //与远端服务进行认证，初始化连接，服务启动时执行
         boolean b = AuthToDistal.distalAuth(configReader);
@@ -52,6 +39,8 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
             String isPac = args[0];
             if ("pac".equalsIgnoreCase(isPac)) {
                 SystemUtil.isPac = true;
+                Integer httpPort = configReader.getHttpPort();
+                WebService.startWebservice(httpPort);
                 systemProxySet = "http://127.0.0.1:" + httpPort + "/pac/1.pac";
             }
         }
@@ -59,7 +48,7 @@ public class ProxyServerProximalApplication implements CommandLineRunner {
         new Thread(() -> startProxyServer(Integer.parseInt(port)), "proxyServerThread").start();
     }
 
-    private void startProxyServer(Integer port) {
+    private static void startProxyServer(Integer port) {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             log.info("Proxy Server is running on port " + port + ". support HTTP 、socks4 and socks5");
             while (true) {

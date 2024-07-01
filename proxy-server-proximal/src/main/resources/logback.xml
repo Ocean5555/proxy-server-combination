@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+    <!--日志文件路径-->
+    <property name="APP_NAME" value="proximal"/>
+    <property name="LOG_PATH" value="/data/logs/${APP_NAME}"/>
+    <!--日志级别配置-->
+    <property name="ROOT_LEVEL" value="INFO"/>
+    <!--日志内容格式-->
+    <property name="ENCODER_PATTERN"
+              value="[%date{yyyy-MM-dd HH:mm:ss.SSS}] [%thread] %X{logthreadId} %-5level %logger{80} %method %line - %msg%n"/>
+    <!--日志文件名格式-->
+    <property name="FILE_NAME_PATTERN" value="${file.separator}%d{yyyy-MM-dd}${file.separator}%d{yyyy-MM-dd}.%i.log"/>
+    <!--日志保留天数-->
+    <property name="maxhistory" value="365"/>
+    <!--单个文件大小-->
+    <property name="maxFileSize" value="10MB"/>
+    <!--日志文件的上限大小-->
+    <property name="totalSizeCap" value="10GB"/>
+    <!--和totalSizeCap配合使用-->
+    <property name="cleanHistoryOnStart" value="true"/>
+
+    <!--debug 日志-->
+    <appender name="debug" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>DEBUG</level>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/debug${FILE_NAME_PATTERN}
+            </fileNamePattern>
+            <maxHistory>${maxhistory}</maxHistory>
+            <maxFileSize>${maxFileSize}</maxFileSize>
+            <totalSizeCap>${totalSizeCap}</totalSizeCap>
+            <cleanHistoryOnStart>${cleanHistoryOnStart}</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ENCODER_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!--业务日志-->
+    <appender name="info" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/info${FILE_NAME_PATTERN}
+            </fileNamePattern>
+            <maxHistory>${maxhistory}</maxHistory>
+            <maxFileSize>${maxFileSize}</maxFileSize>
+            <totalSizeCap>${totalSizeCap}</totalSizeCap>
+            <cleanHistoryOnStart>${cleanHistoryOnStart}</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ENCODER_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+
+    <!--warn 日志-->
+    <appender name="warn" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>WARN</level>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/warn${FILE_NAME_PATTERN}
+            </fileNamePattern>
+            <maxHistory>${maxhistory}</maxHistory>
+            <maxFileSize>${maxFileSize}</maxFileSize>
+            <totalSizeCap>${totalSizeCap}</totalSizeCap>
+            <cleanHistoryOnStart>${cleanHistoryOnStart}</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ENCODER_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!--error 日志-->
+    <appender name="error" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/error${FILE_NAME_PATTERN}
+            </fileNamePattern>
+            <maxHistory>${maxhistory}</maxHistory>
+            <maxFileSize>${maxFileSize}</maxFileSize>
+            <totalSizeCap>${totalSizeCap}</totalSizeCap>
+            <cleanHistoryOnStart>${cleanHistoryOnStart}</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ENCODER_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!--系统日志包含所有日志内容-->
+    <appender name="system" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/system.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/system${FILE_NAME_PATTERN}
+            </fileNamePattern>
+            <maxHistory>${maxhistory}</maxHistory>
+            <maxFileSize>${maxFileSize}</maxFileSize>
+            <totalSizeCap>${totalSizeCap}</totalSizeCap>
+            <cleanHistoryOnStart>${cleanHistoryOnStart}</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ENCODER_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 控制台输出 -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) - %cyan(%logger{80} %method %line) - %msg %n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <root level="${ROOT_LEVEL}">
+        <appender-ref ref="console"/>
+        <appender-ref ref="debug"/>
+        <appender-ref ref="info"/>
+        <appender-ref ref="warn"/>
+        <appender-ref ref="error"/>
+        <appender-ref ref="system"/>
+    </root>
+</configuration>
