@@ -9,9 +9,11 @@ import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.Executors;
 
+@Slf4j
 public class ProxyServer {
 
     /**
@@ -47,7 +49,7 @@ public class ProxyServer {
                         });
                 //绑定端口号，启动服务端
                 channelFuture = serverBootstrap.bind(proxyPort).sync();
-                System.out.println("Proxy distal Server is running on " + channelFuture.channel().localAddress());
+                log.info("Proxy distal Server is running on " + channelFuture.channel().localAddress());
                 //对关闭通道进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -56,7 +58,7 @@ public class ProxyServer {
                 bossGroup.shutdownGracefully();
                 workerGroup.shutdownGracefully();
             }
-            System.out.println("proxy server has closed, exit project!");
+            log.info("proxy server has closed, exit project!");
             System.exit(0);
         });
     }

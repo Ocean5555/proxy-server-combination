@@ -5,6 +5,7 @@ import com.ocean.proxy.server.distal.util.CipherUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteBuffer;
 
@@ -13,6 +14,7 @@ import java.nio.ByteBuffer;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2023/12/8 18:06
  */
+@Slf4j
 public class TargetHandler extends ChannelInboundHandlerAdapter {
 
     private final Channel proximalChannel;
@@ -89,7 +91,7 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
             }
             return true;
         } else {
-            System.out.println("target channel is closed!");
+            log.info("target channel is closed!");
             return false;
         }
     }
@@ -102,7 +104,7 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("connect target active!");
+        log.info("connect target active!");
         targetChannel = ctx.channel();
         connected = true;
     }
@@ -110,7 +112,7 @@ public class TargetHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("target ctx occur error, close connect");
+        log.error("target ctx occur error, close connect");
         if(!cause.getMessage().contains("Connection reset by peer")){
             cause.printStackTrace();
         }

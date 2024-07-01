@@ -8,6 +8,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.Executors;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.Executors;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2024/1/29 14:32
  */
+@Slf4j
 public class AuthServer {
 
     public static void startAuthServer(Integer authPort, Integer proxyPort, String authSecret) {
@@ -43,7 +45,7 @@ public class AuthServer {
                         });
                 //绑定端口号，启动服务端
                 ChannelFuture channelFuture = serverBootstrap.bind(authPort).sync();
-                System.out.println("Auth Server is running on " + channelFuture.channel().localAddress());
+                log.info("Auth Server is running on " + channelFuture.channel().localAddress());
                 //对关闭通道进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -52,7 +54,7 @@ public class AuthServer {
                 bossGroup.shutdownGracefully();
                 workerGroup.shutdownGracefully();
             }
-            System.out.println("proxy server has closed, exit project!");
+            log.info("proxy server has closed, exit project!");
             System.exit(0);
         });
     }

@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomUtils;
 
 import java.nio.ByteBuffer;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2024/1/29 14:52
  */
+@Slf4j
 public class ProxyHandler extends ChannelInboundHandlerAdapter {
 
     private final Map<String, TargetHandler> channelMap = new ConcurrentHashMap<>();
@@ -47,21 +49,21 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                 if (BytesUtil.toHexString(token).equals(BytesUtil.toHexString(cacheToken))) {
                     byte[] remaining = new byte[buffer.remaining()];
                     buffer.get(remaining);
-                    System.out.println("token verification passed");
+                    log.info("token verification passed");
                     targetHandler = new TargetHandler(proximalChannel, new CipherUtil(token));
                     channelMap.put(channelId, targetHandler);
                     processConnectData(remaining, proximalChannel, targetHandler);
                 } else {
-                    System.out.println("token verification fail! token is wrong");
-                    System.out.println("receive token:" + BytesUtil.toHexString(token)
+                    log.info("token verification fail! token is wrong");
+                    log.info("receive token:" + BytesUtil.toHexString(token)
                             + ", cacheToken:" + BytesUtil.toHexString(cacheToken));
                     responseAuthFail(proximalChannel);
                 }
             } else {
-                System.out.println("token verification fail! not exist id:" + id);
+                log.info("token verification fail! not exist id:" + id);
                 responseAuthFail(proximalChannel);
             }
-            System.out.println("=======================================");
+            log.info("=======================================");
         } else {
             //转发数据
             TargetHandler targetHandler = channelMap.get(channelId);
@@ -78,14 +80,14 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("=======================================");
-        System.out.println("rise a connect from " + ctx.channel().remoteAddress());
+        log.info("=======================================");
+        log.info("rise a connect from " + ctx.channel().remoteAddress());
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("proxy ctx occur error, close connect. proxy connection count:" + channelMap.keySet().size());
+        log.error("proxy ctx occur error, close connect. proxy connection count:" + channelMap.keySet().size());
         String channelId = ctx.channel().id().asLongText();
         channelMap.remove(channelId);
         if (!cause.getMessage().contains("Connection reset by peer")) {
@@ -136,14 +138,14 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
     private void responseConnectSuccess(Channel proximalChannel) {
         byte[] status = new byte[]{0x01};
         responseData(proximalChannel, status);
-        System.out.println("response success to proximal.");
+        log.info("response success to proximal.");
     }
 
     //返回与目标服务连接失败的信息
     private void responseConnectFail(Channel proximalChannel) {
         byte[] status = new byte[]{0x00};
         responseData(proximalChannel, status);
-        System.out.println("response fail to proximal.");
+        log.info("response fail to proximal.");
     }
 
     //返回认证失败信息

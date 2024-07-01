@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <b>@Author:</b> Ocean <br/>
  * <b>@DateTime:</b> 2023/12/11 11:09
  */
+@Slf4j
 public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
 
     //与对端建立连接与认证时使用的密钥
@@ -34,7 +36,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
     static {
         InputStream resourceAsStream = AuthenticationHandler.class.getClassLoader().getResourceAsStream("user.properties");
         if (resourceAsStream == null) {
-            System.out.println("未找到用户认证的配置文件");
+            log.info("未找到用户认证的配置文件");
             System.exit(0);
         }
         userProperties = new Properties();
@@ -52,7 +54,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         if (StringUtils.isNotEmpty(authSecret)) {
             secretKey = authSecret.getBytes(StandardCharsets.UTF_8);
         }
-        System.out.println("auth secret:" + new String(secretKey));
+        log.info("auth secret:" + new String(secretKey));
         this.proxyPort = proxyPort;
     }
 
@@ -60,7 +62,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         //获取客户端发送过来的消息
         ByteBuf byteBuf = (ByteBuf) msg;
-        System.out.println("Accepted proximal auth from " +
+        log.info("Accepted proximal auth from " +
                 ctx.channel().remoteAddress());
         byte[] data = new byte[byteBuf.readableBytes()];
         byteBuf.readBytes(data);
@@ -74,17 +76,17 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
             //执行认证
             boolean authResult = proximalAuth(byteBuffer);
             if (authResult) {
-                System.out.println("auth success");
+                log.info("auth success");
                 byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
                 int id = (int) (BytesUtil.toNumberH(idBytes));
                 byte[] token = createToken();
                 tokenMap.put(id, token);
-                System.out.println("alloc id:" + id + ", token:" + BytesUtil.toHexString(token));
+                log.info("alloc id:" + id + ", token:" + BytesUtil.toHexString(token));
                 byte[] proxyPortBytes = BytesUtil.toBytesH(proxyPort);
                 // 0x00认证失败 0x01认证成功
                 outData = BytesUtil.concatBytes(new byte[]{0x01}, proxyPortBytes, idBytes, token);
             } else {
-                System.out.println("auth fail!");
+                log.info("auth fail!");
                 // 0x00认证失败 0x01认证成功
                 outData = new byte[]{(byte) 0x00};
             }
@@ -92,10 +94,10 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
             //检查proximal认证状态
             boolean authValid = checkAuthStatus(byteBuffer);
             if (authValid) {
-                System.out.println("auth valid");
+                log.info("auth valid");
                 outData = new byte[]{0x01};
             }else{
-                System.out.println("auth invalid, need re auth ");
+                log.info("auth invalid, need re auth ");
                 outData = new byte[]{0x00};
             }
         }
@@ -115,7 +117,7 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         //发生异常，关闭通道
-        System.out.println("auth ctx occur error, close connect");
+        log.error("auth ctx occur error, close connect");
         cause.printStackTrace();
         byte[] idBytes = BytesUtil.hexToBytes(ctx.channel().id().asShortText());
         int id = (int) (BytesUtil.toNumberH(idBytes));
@@ -153,15 +155,15 @@ public class AuthenticationHandler extends ChannelInboundHandlerAdapter {
         String user = new String(username, StandardCharsets.UTF_8);
         String configPwd = userProperties.getProperty(user);
         String pwd = new String(password, StandardCharsets.UTF_8);
-        System.out.println("auth username:" + user + ", password:" + pwd);
+        log.info("auth username:" + user + ", password:" + pwd);
         if (StringUtils.isEmpty(configPwd)) {
-            System.out.println("no user：" + user);
+            log.info("no user：" + user);
             return false;
         }
         if (configPwd.equals(pwd)) {
             return true;
         } else {
-            System.out.println("password error");
+            log.info("password error");
         }
         return false;
     }
