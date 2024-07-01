@@ -28,7 +28,7 @@ public class SystemUtil {
         } else if (os.contains("nix") || os.contains("nux") || os.contains("mac")) {
             os = "Linux";
         } else {
-            os= "Other OS";
+            os = "Other OS";
         }
     }
 
@@ -36,39 +36,39 @@ public class SystemUtil {
         if (os.equalsIgnoreCase("Windows")) {
             if (isPac) {
                 startWindowsSystemProxyPac(address);
-            }else{
+            } else {
                 startWindowsSystemProxy(address);
             }
         }
     }
 
-    public static void closeSystemProxy(){
+    public static void closeSystemProxy() {
         if (os.equalsIgnoreCase("Windows")) {
             if (isPac) {
                 closeWindowsSystemProxyPac();
-            }else{
+            } else {
                 closeWindowsSystemProxy();
             }
         }
     }
 
-    public static String getTaskByPort(int portNumber){
+    public static String getTaskByPort(int portNumber) {
         if (os.equalsIgnoreCase("Windows")) {
             return getWindowsTaskByPort(portNumber);
         }
         return "";
     }
 
-    private static void startWindowsSystemProxyPac(String url){
+    private static void startWindowsSystemProxyPac(String url) {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
-                    "reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                    "/v", "AutoConfigURL", "/d", url, "/f"
+                    "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
+                    "/v", "AutoConfigURL", "/d", "\"" + url + "\"", "/f"
             );
             processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
             List<String> command = processBuilder.command();
-            log.info("set proxy command: \n"+ String.join(" ", command));
+            log.info("set proxy command: \n" + String.join(" ", command));
             Process process = processBuilder.start();
             process.waitFor();
             process.destroy();
@@ -80,13 +80,13 @@ public class SystemUtil {
     private static void closeWindowsSystemProxyPac() {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
-                    "reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                    "reg", "delete", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
                     "/v", "AutoConfigURL", "/f"
             );
             processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
             List<String> command = processBuilder.command();
-            log.info("close proxy command: \n"+ String.join(" ", command));
+            log.info("close proxy command: \n" + String.join(" ", command));
             Process process = processBuilder.start();
             process.waitFor();
             process.destroy();
@@ -95,25 +95,25 @@ public class SystemUtil {
         }
     }
 
-    private static void startWindowsSystemProxy(String address){
+    private static void startWindowsSystemProxy(String address) {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
-                    "reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                    "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
                     "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"
             );
             processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
 
             ProcessBuilder processBuilder2 = new ProcessBuilder(
-                    "reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                    "/v", "ProxyServer", "/d", address, "/f"
+                    "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
+                    "/v", "ProxyServer", "/t", "REG_SZ", "/d", "\"" + address + "\"", "/f"
             );
             processBuilder2.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder2.redirectError(ProcessBuilder.Redirect.PIPE);
 
             List<String> command = processBuilder.command();
             List<String> command2 = processBuilder2.command();
-            log.info("set proxy command: \n"+ String.join(" ", command) +"\n" + String.join(" ", command2));
+            log.info("set proxy command: \n" + String.join(" ", command) + "\n" + String.join(" ", command2));
             Process process = processBuilder.start();
             process.waitFor();
             process.destroy();
@@ -128,22 +128,22 @@ public class SystemUtil {
     private static void closeWindowsSystemProxy() {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
-                    "reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                    "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
                     "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"
             );
             processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
 
             ProcessBuilder processBuilder2 = new ProcessBuilder(
-                    "reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                    "/v", "ProxyServer", "/d", "127.0.0.1:1080", "/f"
+                    "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
+                    "/v", "ProxyServer", "/d", "\"127.0.0.1:1080\"", "/f"
             );
             processBuilder2.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder2.redirectError(ProcessBuilder.Redirect.PIPE);
 
             List<String> command = processBuilder.command();
             List<String> command2 = processBuilder2.command();
-            log.info("close proxy command: \n"+ String.join(" ", command) +"\n" + String.join(" ", command2));
+            log.info("close proxy command: \n" + String.join(" ", command) + "\n" + String.join(" ", command2));
             Process process = processBuilder.start();
             process.waitFor();
             process.destroy();
@@ -159,18 +159,18 @@ public class SystemUtil {
         try {
             // String regex = "\\s+\\w+\\s+[\\d\\.]+:" + portNumber+".+";
             // 执行 netstat 命令
-            String[] commandArr = new String[]{"cmd", "/c", "netstat -ano | find \"" + portNumber+"\""};
+            String[] commandArr = new String[]{"cmd", "/c", "netstat -ano | find \"" + portNumber + "\""};
             Process netstatProcess = Runtime.getRuntime().exec(commandArr);
             BufferedReader netstatReader = new BufferedReader(new InputStreamReader(netstatProcess.getInputStream()));
             String netstatLine;
             while ((netstatLine = netstatReader.readLine()) != null) {
                 int i1 = netstatLine.indexOf(":");
-                if (netstatLine.substring(i1+1).startsWith(String.valueOf(portNumber))) {
+                if (netstatLine.substring(i1 + 1).startsWith(String.valueOf(portNumber))) {
                     // 获取对应的进程ID
                     String[] netstatTokens = netstatLine.trim().split("\\s+");
                     String processId = netstatTokens[netstatTokens.length - 1];
                     // 执行 tasklist 命令，获取进程信息
-                    Process tasklistProcess = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "tasklist | find \"" + processId+"\""});
+                    Process tasklistProcess = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "tasklist | find \"" + processId + "\""});
                     BufferedReader tasklistReader = new BufferedReader(new InputStreamReader(tasklistProcess.getInputStream()));
                     String tasklistLine;
                     while ((tasklistLine = tasklistReader.readLine()) != null) {
