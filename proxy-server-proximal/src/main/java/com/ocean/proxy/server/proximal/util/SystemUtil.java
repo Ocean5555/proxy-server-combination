@@ -39,6 +39,7 @@ public class SystemUtil {
             } else {
                 startWindowsSystemProxy(address);
             }
+            Runtime.getRuntime().addShutdownHook(new Thread(SystemUtil::closeSystemProxy));
         }
     }
 
@@ -136,7 +137,7 @@ public class SystemUtil {
 
             ProcessBuilder processBuilder2 = new ProcessBuilder(
                     "reg", "add", "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\"",
-                    "/v", "ProxyServer", "/d", "\"127.0.0.1:1080\"", "/f"
+                    "/v", "ProxyServer", "/t", "REG_SZ", "/d", "\"127.0.0.1:1080\"", "/f"
             );
             processBuilder2.redirectOutput(ProcessBuilder.Redirect.PIPE);
             processBuilder2.redirectError(ProcessBuilder.Redirect.PIPE);

@@ -5,7 +5,6 @@ import com.ocean.proxy.server.proximal.service.*;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import com.ocean.proxy.server.proximal.util.SystemUtil;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -23,7 +22,6 @@ public class ProxyServerProximalApplication {
     private static final ExecutorService executorService = Executors.newCachedThreadPool(new CustomThreadFactory("proxyConn-"));
 
     public static void main(String... args) throws Exception {
-        args = new String[]{"pac"};
         ConfigReader configReader = new ConfigReader();
         //与远端服务进行认证，初始化连接，服务启动时执行
         boolean b = AuthToDistal.distalAuth(configReader);
@@ -110,10 +108,5 @@ public class ProxyServerProximalApplication {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    @PreDestroy
-    public void resetSystemProxy() {
-        SystemUtil.closeSystemProxy();
     }
 }
