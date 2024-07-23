@@ -10973,6 +10973,12 @@ function isPrivateIp(ip) {
 }
 
 function FindProxyForURL(url, host) {
+
+	if (isInProxyDomain(host)) {
+            alert(`${host} MATCHES PROXY DOMAIN`)
+            return proxy;
+    }
+
     if (isPlainHostName(host)
         || isPrivateIp(host)
         || isLocalTestDomain(host)

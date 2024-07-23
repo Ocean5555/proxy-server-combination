@@ -40,27 +40,34 @@ public class WebService {
             String fileName = requestURI.replace("/pac/", "");
             InputStream inputStream = this.getClass().getResourceAsStream("/pac/" + fileName);
             OutputStream os = exchange.getResponseBody();
-            byte[] resultBytes = (fileName + " File not found").getBytes(StandardCharsets.UTF_8);
+
             if (inputStream == null) {
                 log.error("{}文件不存在！", fileName);
+                byte[] resultBytes = (fileName + " File not found").getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(404, resultBytes.length);
+                os.write(resultBytes);
             }else{
                 // 读取文件内容
                 try {
-                    int available = inputStream.available();
-                    resultBytes = new byte[available];
-                    inputStream.read(resultBytes);
-                    // 设置响应头
+                    byte[] resultBytes = new byte[0];
+                    byte[] data = new byte[1024];
+                    int len;
+                    while ((len = inputStream.read(data)) != -1) {
+                        byte[] temp = new byte[resultBytes.length + len];
+                        System.arraycopy(resultBytes,0, temp, 0, resultBytes.length);
+                        System.arraycopy(data,0, temp, resultBytes.length, len);
+                        resultBytes = temp;
+                    }
                     exchange.sendResponseHeaders(200, resultBytes.length);
+                    os.write(resultBytes);
                 } catch (IOException e) {
                     // 文件读取出错
                     log.error("文件读取出错.", e);
-                    resultBytes = (fileName + " read file error").getBytes();
+                    byte[] resultBytes = (fileName + " read file error").getBytes();
                     exchange.sendResponseHeaders(500, resultBytes.length);
+                    os.write(resultBytes);
                 }
             }
-            // 写入响应
-            os.write(resultBytes);
             os.close();
         }
     }
