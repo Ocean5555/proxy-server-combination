@@ -1,6 +1,7 @@
 package com.ocean.proxy.server.distal;
 
 
+import com.ocean.proxy.server.distal.newServer.NewProxyServer;
 import com.ocean.proxy.server.distal.service.AuthServer;
 import com.ocean.proxy.server.distal.service.ProxyServer;
 import org.apache.commons.lang3.StringUtils;
@@ -17,14 +18,14 @@ public class ProxyServerDistalApplication {
         Integer proxyPort = Integer.parseInt(properties.getProperty("proxy.proxy.port"));
         String authSecret = properties.getProperty("auth.secret");
         AuthServer.startAuthServer(authPort, proxyPort, authSecret);
-        ProxyServer.startProxyServer(proxyPort);
+        NewProxyServer.startProxyServer(proxyPort);
     }
 
     private static Properties loadProperties() throws Exception{
         Properties properties = new Properties();
         Properties systemProperties = System.getProperties();
         Set<String> systemPropertiesNames = systemProperties.stringPropertyNames();
-        if (systemPropertiesNames.size() > 0) {
+        if (!systemPropertiesNames.isEmpty()) {
             for (String systemPropertiesName : systemPropertiesNames) {
                 properties.setProperty(systemPropertiesName,
                         systemProperties.getProperty(systemPropertiesName));
@@ -35,7 +36,7 @@ public class ProxyServerDistalApplication {
             Properties propertiesFile = new Properties();
             propertiesFile.load(resourceAsStream);
             Set<String> filePropertiesNames = propertiesFile.stringPropertyNames();
-            if (filePropertiesNames.size() > 0) {
+            if (!filePropertiesNames.isEmpty()) {
                 for (String filePropertiesName : filePropertiesNames) {
                     if (properties.get(filePropertiesName) == null) {
                         properties.setProperty(filePropertiesName, propertiesFile.getProperty(filePropertiesName));

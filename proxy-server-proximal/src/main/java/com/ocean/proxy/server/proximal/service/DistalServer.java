@@ -1,7 +1,6 @@
 package com.ocean.proxy.server.proximal.service;
 
 import com.ocean.proxy.server.proximal.handler.DistalHandler;
-import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
@@ -10,11 +9,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -55,14 +52,14 @@ public class DistalServer {
             //连接池最小大小，小于该值后，将补充连接数到最大
             String connectPoolMin = configReader.getProperties().getProperty("connection.pool.min");
             if (StringUtils.isEmpty(connectPoolMax)) {
-                connectPoolMax = "50";
+                connectPoolMax = "10";
             }
             if (StringUtils.isEmpty(connectPoolMin)) {
-                connectPoolMin = "20";
+                connectPoolMin = "5";
             }
             int max = Integer.parseInt(connectPoolMax);
             int min = Integer.parseInt(connectPoolMin);
-            Executors.newScheduledThreadPool(5).scheduleWithFixedDelay(() -> {
+            Executors.newScheduledThreadPool(2).scheduleWithFixedDelay(() -> {
                 try {
                     if (connectQueue.size() < min) {
                         while (connectQueue.size() < max) {
@@ -77,27 +74,36 @@ public class DistalServer {
                 } catch (Exception e) {
                     log.error("error in create new connection.", e);
                 }
-            }, 0, 100, TimeUnit.MILLISECONDS);
+            }, 0, 1, TimeUnit.SECONDS);
         }
     }
 
     public static void useDistalConnect(Socket clientSocket, String targetAddress, Integer targetPort)throws Exception{
+        useDistalConnect(clientSocket, targetAddress, targetPort, null);
+    }
+
+    public static void useDistalConnect(Socket clientSocket, String targetAddress, Integer targetPort, byte[] preData)throws Exception{
         DistalHandler distalHandler;
-        if (connectQueue.size() > 0) {
-            distalHandler = connectQueue.take();
-            while (distalHandler.getEffective() == 2) {
+        if (!connectQueue.isEmpty()) {
+            distalHandler = connectQueue.poll();
+            while (distalHandler == null || distalHandler.getEffective() == 2) {
                 log.warn("invalid connection +1");
-                distalHandler = connectQueue.take();
+                distalHandler = createDistalHandler();
             }
             log.info("use connection pool, remaining：" + connectQueue.size());
         }else {
             distalHandler = createDistalHandler();
         }
         if (distalHandler == null) {
+            clientSocket.close();
             return;
         }
-        useActive(distalHandler, clientSocket, targetAddress, targetPort);
-        waitConnectTarget(distalHandler, targetAddress, targetPort);
+        if (preData != null) {
+            distalHandler.setPreData(preData);
+        }
+        distalHandler.useActive(clientSocket, targetAddress, targetPort);
+        distalHandler.waitConnectTarget(targetAddress, targetPort, configReader);
+
     }
 
     private static DistalHandler createDistalHandler(){
@@ -107,7 +113,7 @@ public class DistalServer {
             try {
                 Thread.sleep(20);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                log.error("", e);
             }
         }
         if (distalHandler.getEffective() == 2) {
@@ -144,7 +150,7 @@ public class DistalServer {
                 //对通道关闭进行监听
                 channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("", e);
             } finally {
                 //关闭线程组
                 eventExecutors.shutdownGracefully();
@@ -154,50 +160,4 @@ public class DistalServer {
         });
     }
 
-    private static void waitConnectTarget(DistalHandler distalHandler, String targetAddress, Integer targetPort){
-        int times = 30;
-        while (distalHandler.getTargetConnectStatus() == -1) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            times--;
-            if (times <= 0) {
-                log.error("connect timeout！"+ targetAddress + ":" + targetPort);
-                distalHandler.close();
-                throw new RuntimeException("connect timeout！"+ targetAddress + ":" + targetPort);
-            }
-        }
-        if (distalHandler.getTargetConnectStatus() == 2) {
-            boolean b = false;
-            try {
-                b = AuthToDistal.distalAuth(configReader);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            if (!b) {
-                log.info("auth fail, close this program");
-                System.exit(0);
-            }
-        }
-    }
-
-    private static void useActive(DistalHandler distalHandler, Socket clientSocket, String targetAddress, Integer targetPort) {
-        distalHandler.setClientSocket(clientSocket);
-        //发送新建连接的数据给distal
-        byte[] version = new byte[]{0x01};
-        byte[] addressBytes = targetAddress.getBytes(StandardCharsets.UTF_8);
-        byte[] addressLen = BytesUtil.toBytesH(addressBytes.length);
-        byte[] portBytes = BytesUtil.toBytesH(targetPort);
-        byte[] id = AuthToDistal.getId();
-        byte[] token = AuthToDistal.getToken();
-        byte[] data = BytesUtil.concatBytes(version, id, token, addressLen, addressBytes, portBytes);
-        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 99));
-        byte[] sendData = BytesUtil.concatBytes(data, randomData);
-        //通过默认密码加密
-        AuthToDistal.encryptDecrypt(sendData);
-        distalHandler.sendData(sendData);
-        log.info("send connect info!");
-    }
 }

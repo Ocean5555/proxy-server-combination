@@ -1,6 +1,7 @@
 package com.ocean.proxy.server.proximal.handler;
 
 import com.ocean.proxy.server.proximal.service.AuthToDistal;
+import com.ocean.proxy.server.proximal.service.ConfigReader;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import com.ocean.proxy.server.proximal.util.CustomThreadFactory;
 import io.netty.buffer.ByteBuf;
@@ -11,6 +12,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,6 +20,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,6 +67,8 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
      */
     private byte[] cache = new byte[0];
 
+    private byte[] preData;
+
     /**
      * 收到distal发来的数据
      *
@@ -98,38 +103,30 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
             }
         } else {
             //接收distal数据转发给client
-            //通过token解密
             cache = BytesUtil.concatBytes(cache, data);
-            ByteBuffer buffer = ByteBuffer.wrap(cache);
-            int length = buffer.getInt();
-            while (buffer.remaining() >= length) {
-                //拿到一条完整加密数据
-                byte[] encryptData = new byte[length];
-                buffer.get(encryptData);
-                //解密发送
-                byte[] sendData = AuthToDistal.decryptData(encryptData);
-                OutputStream outputStream = clientSocket.getOutputStream();
-                try {
-                    outputStream.write(sendData);
-                } catch (SocketException e) {
-                    log.info("client exception: " + e.getMessage());
-                    ctx.close();
-                    clientSocket.close();
+            if (cache.length > 4) {
+                ByteBuffer buffer = ByteBuffer.wrap(cache);
+                int length = buffer.getInt();
+                while (buffer.remaining() >= length) {
+                    //拿到一条完整加密数据
+                    byte[] encryptData = new byte[length];
+                    buffer.get(encryptData);
+                    //解密发送
+                    byte[] sendData = AuthToDistal.decryptData(encryptData);
+                    clientSocket.getOutputStream().write(sendData);
+                    if (buffer.remaining() > 4) {
+                        length = buffer.getInt();
+                    }
                 }
-                if (buffer.remaining() > 4) {
-                    length = buffer.getInt();
+                if (buffer.remaining() <= 4) {
+                    byte[] lastData = new byte[buffer.remaining()];
+                    buffer.get(lastData);
+                    cache = lastData;
+                }else{
+                    byte[] lastData = new byte[buffer.remaining()];
+                    buffer.get(lastData);
+                    cache = BytesUtil.concatBytes(BytesUtil.toBytesH(length), lastData);
                 }
-            }
-            if(buffer.remaining() == 0){
-                cache = new byte[0];
-            } else if (buffer.remaining() > 4) {
-                byte[] lastData = new byte[buffer.remaining()];
-                buffer.get(lastData);
-                cache = BytesUtil.concatBytes(BytesUtil.toBytesH(length), lastData);
-            }else{
-                byte[] lastData = new byte[buffer.remaining()];
-                buffer.get(lastData);
-                cache = lastData;
             }
         }
     }
@@ -155,6 +152,16 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 }
                 InputStream input = clientSocket.getInputStream();
                 Channel distalChannel = ctx.channel();
+                if (preData != null) {
+                    //通过token加密
+                    preData = AuthToDistal.encryptData(preData);
+                    byte[] length = BytesUtil.toBytesH(preData.length);
+                    ByteBuf buf = Unpooled.buffer();
+                    buf.writeBytes(length);
+                    buf.writeBytes(preData);
+                    distalChannel.writeAndFlush(buf);
+                    preData = null;
+                }
                 //源端与目标端数据传输
                 int bytesRead;
                 while (!clientSocket.isClosed()) {
@@ -183,10 +190,10 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                     log.info("Connection reset by peer");
                 } else {
                     // 处理其他SocketException
-                    e.printStackTrace();
+                    log.error("", e);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("", e);
             }finally {
                 if (ctx.channel().isOpen()) {
                     ctx.channel().close();
@@ -194,7 +201,7 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
                 try {
                     clientSocket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("", e);
                 }
             }
         });
@@ -208,17 +215,61 @@ public class DistalHandler extends ChannelInboundHandlerAdapter {
         ctx.close();
     }
 
-    public void sendData(byte[] data){
-        Channel distalChannel = ctx.channel();
-        if (distalChannel.isOpen()) {
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeBytes(data);
-            distalChannel.writeAndFlush(buf);
+    public void close(){
+        ctx.close();
+    }
+
+
+    public void waitConnectTarget(String targetAddress, Integer targetPort, ConfigReader configReader){
+        int times = 50;
+        while (getTargetConnectStatus() == -1) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            times--;
+            if (times <= 0) {
+                log.error("connect timeout！"+ targetAddress + ":" + targetPort);
+                close();
+                throw new RuntimeException("connect timeout！"+ targetAddress + ":" + targetPort);
+            }
+        }
+        if (getTargetConnectStatus() == 2) {
+            boolean b = false;
+            try {
+                b = AuthToDistal.distalAuth(configReader);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (!b) {
+                log.info("auth fail, close this program");
+                System.exit(0);
+            }
         }
     }
 
-    public void close(){
-        ctx.close();
+    public void useActive(Socket clientSocket, String targetAddress, Integer targetPort) {
+        setClientSocket(clientSocket);
+        //发送新建连接的数据给distal
+        byte[] version = new byte[]{0x01};
+        byte[] addressBytes = targetAddress.getBytes(StandardCharsets.UTF_8);
+        byte[] addressLen = BytesUtil.toBytesH(addressBytes.length);
+        byte[] portBytes = BytesUtil.toBytesH(targetPort);
+        byte[] id = AuthToDistal.getId();
+        byte[] token = AuthToDistal.getToken();
+        byte[] data = BytesUtil.concatBytes(version, id, token, addressLen, addressBytes, portBytes);
+        byte[] randomData = RandomUtils.nextBytes(RandomUtils.nextInt(11, 99));
+        byte[] sendData = BytesUtil.concatBytes(data, randomData);
+        //通过默认密码加密
+        AuthToDistal.encryptDecrypt(sendData);
+        Channel distalChannel = ctx.channel();
+        if (distalChannel.isOpen()) {
+            ByteBuf buf = Unpooled.buffer();
+            buf.writeBytes(sendData);
+            distalChannel.writeAndFlush(buf);
+        }
+        log.info("send connect info!");
     }
 
 }

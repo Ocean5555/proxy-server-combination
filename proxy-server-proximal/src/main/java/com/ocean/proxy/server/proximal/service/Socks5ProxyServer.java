@@ -1,11 +1,14 @@
 package com.ocean.proxy.server.proximal.service;
 
+import ch.qos.logback.core.pattern.color.BoldCyanCompositeConverter;
 import com.ocean.proxy.server.proximal.util.BytesUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
 @Slf4j
@@ -98,9 +101,33 @@ public class Socks5ProxyServer {
                 sendConnectionResponse(output, (byte) 0x01, targetDomain, targetPort);
                 throw new RuntimeException("连接目标服务失败。", e);
             }
-        } else {
+        } else if (addressType == 0x04) {
+            //ipv6
+            byte[] ipv6 = new byte[16];
+            input.read(ipv6);
+            byte[] port = new byte[2];
+            input.read(port);
+            long targetPort = BytesUtil.toNumberH(port);
+            InetAddress inetAddress = InetAddress.getByAddress(ipv6);
+            log.info("target:" + inetAddress.getHostAddress() + ":" + targetPort);
+            try {
+                if (cmd == 0x01) {
+                    DistalServer.useDistalConnect(clientSocket, inetAddress.getHostAddress(), (int)targetPort);
+                    sendConnectionResponseIpv6(output, (byte) 0x00, ipv6, port);
+                } else if (cmd == 0x03) {
+                    DistalServer.useDistalConnect(clientSocket, inetAddress.getHostAddress(), (int)targetPort);
+                    handleUdpAssociateRequest(output);
+                } else {
+                    log.info("not support cmd!");
+                    throw new RuntimeException("not support cmd");
+                }
+            } catch (Exception e) {
+                sendConnectionResponseIpv6(output, (byte) 0x01, ipv6, port);
+                throw new RuntimeException("连接目标服务失败。", e);
+            }
+        }else {
             // 不支持的地址类型
-            throw new RuntimeException("not support address type!");
+            throw new RuntimeException("not support address type:"+addressType);
         }
     }
 
@@ -143,6 +170,12 @@ public class Socks5ProxyServer {
     private static void sendConnectionResponse(OutputStream output, byte status, byte[] ipv4, int targetPort) throws IOException {
         // 发送连接响应
         output.write(new byte[]{(byte) 0x05, status, (byte) 0x00, (byte) 0x01, ipv4[0], ipv4[1], ipv4[2], ipv4[3], (byte) (targetPort >> 8), (byte) targetPort});
+    }
+
+    private static void sendConnectionResponseIpv6(OutputStream output, byte status, byte[] ipv6, byte[] port) throws IOException {
+        // 发送连接响应
+        byte[] bytes = {(byte) 0x05, status, (byte) 0x00, (byte) 0x01};
+        output.write(BytesUtil.concatBytes(bytes, ipv6, port));
     }
 
     private static void sendConnectionResponse(OutputStream output, byte status, String targetDomain, int targetPort) throws IOException {
